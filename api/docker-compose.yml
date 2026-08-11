@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  atte-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - NEXTCLOUD_PASS=${NEXTCLOUD_PASS}
+      - GRIST_API_KEY=${GRIST_API_KEY}
+    restart: unless-stopped
+    volumes:
+      - /tmp/atte-pipeline:/tmp/atte-pipeline
