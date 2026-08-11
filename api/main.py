@@ -28,13 +28,13 @@ app.add_middleware(
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 import os
 
-NEXTCLOUD_URL = "https://nx99546.your-storageshare.de"
-NEXTCLOUD_USER = "info@squirrelystash.com"
+NEXTCLOUD_URL = os.environ.get("NEXTCLOUD_URL", "")
+NEXTCLOUD_USER = os.environ.get("NEXTCLOUD_USER", "")
 NEXTCLOUD_PASS = os.environ.get("NEXTCLOUD_PASS", "")
 NEXTCLOUD_BASE = f"{NEXTCLOUD_URL}/remote.php/dav/files/{NEXTCLOUD_USER}/At the Tail End"
 
 GRIST_API_KEY = os.environ.get("GRIST_API_KEY", "")
-GRIST_DOC_ID = "sU9aJthLkBs7FmMhcH6LAd"
+GRIST_DOC_ID = os.environ.get("GRIST_DOC_ID", "")
 GRIST_API = f"https://docs.getgrist.com/api/docs/{GRIST_DOC_ID}"
 
 WORK_DIR = Path("/tmp/atte-pipeline")
