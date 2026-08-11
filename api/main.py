@@ -26,12 +26,14 @@ app.add_middleware(
 )
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
+import os
+
 NEXTCLOUD_URL = "https://nx99546.your-storageshare.de"
 NEXTCLOUD_USER = "info@squirrelystash.com"
-NEXTCLOUD_PASS = "YOUR_NEXTCLOUD_PASSWORD"  # Use env var in production
+NEXTCLOUD_PASS = os.environ.get("NEXTCLOUD_PASS", "")
 NEXTCLOUD_BASE = f"{NEXTCLOUD_URL}/remote.php/dav/files/{NEXTCLOUD_USER}/At the Tail End"
 
-GRIST_API_KEY = "YOUR_GRIST_API_KEY"
+GRIST_API_KEY = os.environ.get("GRIST_API_KEY", "")
 GRIST_DOC_ID = "sU9aJthLkBs7FmMhcH6LAd"
 GRIST_API = f"https://docs.getgrist.com/api/docs/{GRIST_DOC_ID}"
 
