@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanning Dashboard</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+:root {
+  --ink: #1A1614;
+  --paper: #F7F3EE;
+  --warm: #E8DFD4;
+  --rule: #D4C9BC;
+  --accent: #8B3A2A;
+  --accent-light: #F2E8E5;
+  --teal: #3A8B7A;
+  --teal-light: #E5F2EF;
+  --gold: #B07D2A;
+  --gold-light: #F5EDD8;
+  --done-bg: #EAF3DE;
+  --done-border: #639922;
+  --done-text: #27500A;
+  --warn-bg: #FFF8E1;
+  --warn-border: #F0B429;
+  --warn-text: #7B5E00;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 16px;
+}
+.header-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+}
+.header-title { font-family: 'Libre Baskerville', serif; font-size: 20px; font-weight: 700; }
+.header-sub { font-size: 11px; color: #8B7D72; margin-top: 2px; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font-size: 12px; padding: 7px 13px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--rule); background: white; color: var(--ink);
+  font-family: 'Inter', sans-serif;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn-primary:hover { opacity: .9; }
+.btn-sm { font-size: 11px; padding: 4px 10px; border-radius: 5px; }
+.btn-teal { background: var(--teal); border-color: var(--teal); color: white; }
+.btn-teal:hover { opacity: .9; }
+.empty-state {
+  text-align: center; color: #8B7D72; padding: 60px 20px; font-style: italic;
+}
+/* Item info bar */
+.item-bar {
+  background: white; border: 1px solid var(--rule); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.item-id {
+  font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500;
+  color: var(--accent); white-space: nowrap;
+}
+.item-title { font-family: 'Libre Baskerville', serif; font-size: 15px; font-weight: 700; flex: 1; }
+.item-meta { font-size: 11px; color: #8B7D72; white-space: nowrap; }
+.badge {
+  display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  white-space: nowrap;
+}
+.badge-stock { background: var(--teal-light); color: var(--teal); }
+.badge-parts { background: var(--gold-light); color: var(--gold); }
+.badge-sold { background: var(--done-bg); color: var(--done-text); }
+/* Section */
+.section {
+  background: white; border: 1px solid var(--rule); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 12px;
+}
+.section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: #8B7D72; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+}
+/* Progress bar */
+.progress-wrap { margin-bottom: 12px; }
+.progress-label { font-size: 11px; color: #8B7D72; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.progress-bar { height: 6px; background: var(--warm); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--teal); border-radius: 3px; transition: width .3s; }
+/* Scan list */
+.scan-list { display: flex; flex-direction: column; gap: 6px; }
+.scan-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border: 1px solid var(--rule); border-radius: 7px; background: var(--paper);
+  flex-wrap: wrap;
+}
+.scan-row:hover { border-color: var(--accent); }
+.scan-id { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); white-space: nowrap; min-width: 110px; }
+.scan-page { font-size: 12px; flex: 1; }
+.scan-status-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+}
+.dot-done { background: var(--teal); }
+.dot-pending { background: var(--rule); }
+.dot-warn { background: var(--warn-border); }
+.file-status {
+  display: flex; align-items: center; gap: 4px; font-size: 10px;
+  padding: 2px 7px; border-radius: 4px;
+}
+.fs-ok { background: var(--done-bg); color: var(--done-text); }
+.fs-missing { background: var(--warn-bg); color: var(--warn-text); }
+.fs-na { background: var(--warm); color: #8B7D72; }
+/* Pipeline steps */
+.pipeline {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.pipeline-step {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--paper);
+}
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--warm); color: #8B7D72;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.step-num.done { background: var(--teal); color: white; }
+.step-num.active { background: var(--accent); color: white; }
+.step-info { flex: 1; }
+.step-title { font-size: 12px; font-weight: 600; }
+.step-desc { font-size: 11px; color: #8B7D72; margin-top: 1px; }
+.step-action { flex-shrink: 0; }
+/* Log */
+.log-box {
+  background: var(--ink); color: #B0A898; font-family: 'DM Mono', monospace;
+  font-size: 11px; border-radius: 8px; padding: 10px 12px;
+  max-height: 160px; overflow-y: auto; margin-top: 10px;
+  display: none;
+}
+.log-box.visible { display: block; }
+.log-line { margin-bottom: 2px; }
+.log-line.ok { color: #6DBF8F; }
+.log-line.err { color: #E07070; }
+.log-line.info { color: #7DB8D4; }
+/* Toast */
+.toast {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: white; padding: 8px 16px; border-radius: 6px; font-size: 12px;
+  opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 999;
+}
+.toast.show { opacity: 1; }
+/* Add scan form */
+.add-scan-form {
+  display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule);
+}
+.add-scan-form.visible { display: block; }
+.form-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.field-wrap { display: flex; flex-direction: column; gap: 3px; }
+.field-label { font-size: 10px; color: #8B7D72; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.field-select, .field-input {
+  padding: 6px 8px; border: 1px solid var(--rule); border-radius: 5px;
+  font-family: 'Inter', sans-serif; font-size: 12px; outline: none;
+  background: white; color: var(--ink);
+}
+.field-select:focus, .field-input:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="header-row">
+  <div>
+    <div class="header-title">Scanning Dashboard</div>
+    <div class="header-sub" id="headerSub">Select an item in the Items table to begin</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="refresh()">↻ Refresh</button>
+  </div>
+</div>
+
+<div id="content">
+  <div class="empty-state">Select a row in the Items table to see its scanning status</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const BACKEND_URL = 'YOUR_BACKEND_URL'; // e.g. https://atte-api.yourdomain.com
+const GRIST_DOC_ID = 'sU9aJthLkBs7FmMhcH6LAd';
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let currentItem = null;
+let currentScans = [];
+let allScans = [];
+let logVisible = false;
+let logLines = [];
+
+// ── GRIST SETUP ──────────────────────────────────────────────────────────────
+grist.ready({ requiredAccess: 'full', columns: [] });
+
+grist.onRecord(async (record) => {
+  if (!record || !record.item_id) {
+    document.getElementById('content').innerHTML =
+      '<div class="empty-state">Select a row in the Items table to see its scanning status</div>';
+    document.getElementById('headerSub').textContent = 'Select an item in the Items table to begin';
+    currentItem = null;
+    return;
+  }
+  currentItem = record;
+  await loadDashboard();
+});
+
+// ── LOAD ─────────────────────────────────────────────────────────────────────
+async function refresh() {
+  if (!currentItem) return;
+  await loadDashboard();
+}
+
+async function loadDashboard() {
+  document.getElementById('headerSub').textContent = 'Loading...';
+  try {
+    const scansData = await grist.docApi.fetchTable('Scans');
+    const ids = scansData.id || [];
+    allScans = ids.map((id, i) => ({
+      id,
+      scan_id: col(scansData, 'scan_id', i),
+      source_item_id: col(scansData, 'source_item_id', i),
+      title: col(scansData, 'title', i),
+      page_side: col(scansData, 'page_side', i),
+      category: col(scansData, 'category', i),
+      folder: col(scansData, 'folder', i),
+      scan_date: col(scansData, 'scan_date', i),
+      resolution_dpi: col(scansData, 'resolution_dpi', i),
+      master_filename: col(scansData, 'master_filename', i),
+      jpg_filename: col(scansData, 'jpg_filename', i),
+      png_filename: col(scansData, 'png_filename', i),
+      pd_status: col(scansData, 'pd_status', i),
+      status: col(scansData, 'status', i),
+      listed_individually: col(scansData, 'listed_individually', i),
+    }));
+
+    // Filter to current item — source_item_id may be a reference integer or string
+    currentScans = allScans.filter(s => {
+      const sid = String(s.source_item_id || '');
+      return sid === String(currentItem.id) || sid === currentItem.item_id;
+    });
+
+    // Try to get file status from backend
+    let fileStatus = null;
+    try {
+      const res = await fetch(`${BACKEND_URL}/scan-status/${currentItem.item_id}`, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) fileStatus = await res.json();
+    } catch(e) { /* backend not available — show without file status */ }
+
+    render(fileStatus);
+    document.getElementById('headerSub').textContent =
+      `${currentItem.item_id} · ${currentScans.length} scan${currentScans.length !== 1 ? 's' : ''} registered`;
+  } catch(e) {
+    console.error(e);
+    document.getElementById('headerSub').textContent = 'Error loading data';
+  }
+}
+
+function col(table, name, i) {
+  return Array.isArray(table[name]) ? (table[name][i] ?? '') : '';
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(fileStatus) {
+  const item = currentItem;
+  const scans = currentScans;
+  const verified = scans.filter(s => s.pd_status === 'Verified PD').length;
+  const hasResearchPdf = fileStatus?.research_pdf_exists || false;
+  const hasFinalPdf = fileStatus?.final_pdf_exists || false;
+  const masterCount = fileStatus?.masters_found?.length || 0;
+  const statusBadge = item.status === 'Sold' ? 'badge-sold' :
+    item.status === 'Parts only - digital' ? 'badge-parts' : 'badge-stock';
+
+  document.getElementById('content').innerHTML = `
+    <!-- Item bar -->
+    <div class="item-bar">
+      <div class="item-id">${item.item_id || '—'}</div>
+      <div class="item-title">${item.title || 'Untitled'}</div>
+      <div class="item-meta">${item.era || ''} ${item.category || ''}</div>
+      <span class="badge ${statusBadge}">${item.status || 'In stock'}</span>
+    </div>
+
+    <!-- Scan progress -->
+    <div class="section">
+      <div class="section-title">
+        <span>Scans (${scans.length})</span>
+        <button class="btn btn-sm btn-primary" onclick="toggleAddScan()">+ Register scan</button>
+      </div>
+      ${scans.length > 0 ? `
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span>PD verified</span>
+            <span>${verified} / ${scans.length}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${scans.length ? Math.round(verified/scans.length*100) : 0}%"></div>
+          </div>
+        </div>
+        <div class="scan-list">
+          ${scans.map(s => scanRowHTML(s, fileStatus)).join('')}
+        </div>
+      ` : `<div style="color:#8B7D72;font-style:italic;font-size:12px;padding:8px 0">No scans registered yet</div>`}
+      <!-- Add scan form -->
+      <div class="add-scan-form" id="addScanForm">
+        <div class="form-row">
+          <div class="field-wrap">
+            <div class="field-label">Page / Side</div>
+            <select class="field-select" id="newPageSide">
+              <option>Front</option><option>Back</option><option>Full item</option>
+              <option>Cover</option><option>Inside cover</option>
+              <option>Page 2</option><option>Page 3</option><option>Page 4</option>
+              <option>Page 5</option><option>Page 6</option><option>Page 7</option>
+              <option>Page 8</option><option>Page 9</option><option>Page 10</option>
+              <option>Detail</option><option>Full spread</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field-wrap">
+            <div class="field-label">Resolution</div>
+            <select class="field-select" id="newDpi">
+              <option>600</option><option>1200</option><option>300</option>
+            </select>
+          </div>
+          <div class="field-wrap">
+            <div class="field-label">PD Basis</div>
+            <select class="field-select" id="newPdBasis">
+              <option value="Needs research">Needs research</option>
+              <option value="Pre-1929 publication">Pre-1929 publication</option>
+              <option value="No renewal found (1929-1963)">No renewal found</option>
+              <option value="Federal govt work">Federal govt work</option>
+              <option value="Trademark concern - needs review">Trademark concern</option>
+            </select>
+          </div>
+          <div class="field-wrap">
+            <div class="field-label">Trademark?</div>
+            <select class="field-select" id="newTrademark">
+              <option>No</option><option>Yes - needs review</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="registerScan()" style="align-self:flex-end">Register</button>
+          <button class="btn" onclick="toggleAddScan()" style="align-self:flex-end">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF Pipeline -->
+    <div class="section">
+      <div class="section-title">PDF Pipeline</div>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="step-num ${scans.length > 0 ? 'done' : ''}">1</div>
+          <div class="step-info">
+            <div class="step-title">CZUR scan — full item</div>
+            <div class="step-desc">Scan every page with CZUR at 300 DPI. Save as PDF.</div>
+          </div>
+          <div class="step-action">
+            <label class="btn btn-sm" style="cursor:pointer">
+              Upload PDF
+              <input type="file" accept=".pdf" style="display:none" onchange="uploadCzurPdf(this)">
+            </label>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num ${masterCount > 0 ? 'done' : ''}">2</div>
+          <div class="step-info">
+            <div class="step-title">Flatbed scan — image pages</div>
+            <div class="step-desc">Scan image-rich pages at 600 DPI TIFF. ${masterCount > 0 ? `<strong>${masterCount} master(s) found in Nextcloud</strong>` : 'Place TIFFs in Nextcloud masters folder.'}</div>
+          </div>
+          <div class="step-action">
+            <button class="btn btn-sm" onclick="checkMasters()">Check files</button>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num ${hasResearchPdf ? 'done' : (masterCount > 0 ? 'active' : '')}">3</div>
+          <div class="step-info">
+            <div class="step-title">Replace pages + build PDF</div>
+            <div class="step-desc">Swap flatbed TIFFs into CZUR PDF. Run OCR. ${hasResearchPdf ? '<strong style="color:var(--done-text)">Research PDF ready ✓</strong>' : ''}</div>
+          </div>
+          <div class="step-action">
+            <button class="btn btn-sm btn-teal" onclick="runPdfPipeline()" ${masterCount === 0 ? 'disabled title="Upload CZUR PDF and add flatbed masters first"' : ''}>
+              Build PDF
+            </button>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num ${scans.filter(s=>s.jpg_filename).length > 0 ? 'done' : ''}">4</div>
+          <div class="step-info">
+            <div class="step-title">Generate derivatives</div>
+            <div class="step-desc">Create web JPGs and transparent PNGs from all TIFF masters.</div>
+          </div>
+          <div class="step-action">
+            <button class="btn btn-sm btn-teal" onclick="generateDerivatives()" ${masterCount === 0 ? 'disabled' : ''}>
+              Generate all
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  `;
+}
+
+function scanRowHTML(s, fileStatus) {
+  const masterOk = fileStatus?.masters_found?.includes(s.master_filename);
+  const jpgOk = fileStatus?.jpgs_found?.includes(s.jpg_filename);
+  const pngOk = fileStatus?.pngs_found?.includes(s.png_filename);
+
+  const pdClass = s.pd_status === 'Verified PD' ? 'fs-ok' :
+    s.pd_status === 'Needs research' ? 'fs-missing' : 'fs-na';
+
+  return `
+    <div class="scan-row">
+      <div class="scan-id">${s.scan_id || '—'}</div>
+      <div class="scan-page">${s.page_side || s.title || '—'}</div>
+      <div class="scan-status-row">
+        ${fileStatus ? `
+          <span class="file-status ${masterOk ? 'fs-ok' : 'fs-missing'}" title="TIFF master">
+            <span class="dot ${masterOk ? 'dot-done' : 'dot-warn'}"></span> TIFF
+          </span>
+          <span class="file-status ${jpgOk ? 'fs-ok' : 'fs-missing'}" title="JPG derivative">
+            <span class="dot ${jpgOk ? 'dot-done' : 'dot-warn'}"></span> JPG
+          </span>
+          <span class="file-status ${pngOk ? 'fs-ok' : 'fs-missing'}" title="PNG transparent">
+            <span class="dot ${pngOk ? 'dot-done' : 'dot-warn'}"></span> PNG
+          </span>
+        ` : ''}
+        <span class="file-status ${pdClass}" title="PD status">
+          ${s.pd_status === 'Verified PD' ? '✓ PD' : s.pd_status === 'Needs research' ? '⚠ PD?' : s.pd_status || '—'}
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+// ── ADD SCAN ──────────────────────────────────────────────────────────────────
+function toggleAddScan() {
+  const form = document.getElementById('addScanForm');
+  form.classList.toggle('visible');
+}
+
+async function registerScan() {
+  if (!currentItem) return;
+  const pageSide = document.getElementById('newPageSide').value;
+  const dpi = document.getElementById('newDpi').value;
+  const pdBasis = document.getElementById('newPdBasis').value;
+  const trademark = document.getElementById('newTrademark').value;
+
+  const pdStatus = (pdBasis === 'Needs research' || pdBasis === 'Trademark concern - needs review')
+    ? 'Needs research' : 'Likely PD - unverified';
+
+  // Count existing scans for this item to get next number
+  const existing = currentScans.filter(s => s.scan_id && s.scan_id.includes('-S'));
+  const nums = existing.map(s => parseInt(s.scan_id.split('-S')[1]) || 0);
+  const nextNum = (Math.max(0, ...nums) + 1).toString().padStart(2, '0');
+  const scanId = `${currentItem.item_id}-S${nextNum}`;
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    await grist.docApi.applyUserActions([['AddRecord', 'Scans', null, {
+      scan_id: scanId,
+      source_item_id: currentItem.id,
+      page_side: pageSide,
+      scan_date: today,
+      resolution_dpi: parseInt(dpi),
+      pd_status: pdStatus,
+      pd_basis: pdBasis === 'Needs research' ? '' : pdBasis,
+      trademark_flag: trademark === 'Yes - needs review' ? 'Yes' : 'No',
+      status: 'Draft',
+    }]]);
+    showToast(`Registered ${scanId}`);
+    document.getElementById('addScanForm').classList.remove('visible');
+    await loadDashboard();
+  } catch(e) {
+    console.error(e);
+    showToast('Failed to register scan — check Grist permissions');
+  }
+}
+
+// ── PDF PIPELINE ──────────────────────────────────────────────────────────────
+async function uploadCzurPdf(input) {
+  const file = input.files[0];
+  if (!file || !currentItem) return;
+  addLog(`Uploading ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)...`, 'info');
+  showLog();
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('item_id', currentItem.item_id);
+  formData.append('folder', currentItem.category?.toLowerCase().includes('gaming') ? 'gaming' :
+    currentItem.category?.toLowerCase().includes('music') ? 'music' :
+    currentItem.category?.toLowerCase().includes('dvd') || currentItem.category?.toLowerCase().includes('vhs') ? 'media' : 'ephemera');
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/upload-czur-pdf`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (res.ok) {
+      addLog(`✓ CZUR PDF uploaded: ${data.path}`, 'ok');
+      showToast('CZUR PDF uploaded');
+    } else {
+      addLog(`✗ Upload failed: ${data.detail || 'unknown error'}`, 'err');
+    }
+  } catch(e) {
+    addLog(`✗ Upload error: ${e.message}`, 'err');
+  }
+}
+
+async function checkMasters() {
+  if (!currentItem) return;
+  addLog(`Checking Nextcloud for masters...`, 'info');
+  showLog();
+  await loadDashboard();
+  addLog(`Found ${currentScans.length} registered scans`, 'ok');
+}
+
+async function runPdfPipeline() {
+  if (!currentItem) return;
+  addLog(`Starting PDF pipeline for ${currentItem.item_id}...`, 'info');
+  showLog();
+
+  const scanIds = currentScans.map(s => ({
+    scan_id: s.scan_id,
+    master_filename: s.master_filename,
+    folder: s.folder,
+  }));
+
+  try {
+    addLog('Replacing pages with flatbed masters...', 'info');
+    const res = await fetch(`${BACKEND_URL}/replace-pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: currentItem.item_id, scans: scanIds }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      addLog(`✓ Pages replaced: ${data.pages_replaced} page(s) swapped`, 'ok');
+      addLog('Running OCR...', 'info');
+      const ocrRes = await fetch(`${BACKEND_URL}/run-ocr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: currentItem.item_id }),
+      });
+      const ocrData = await ocrRes.json();
+      if (ocrRes.ok) {
+        addLog(`✓ OCR complete: ${ocrData.output_path}`, 'ok');
+        showToast('PDF pipeline complete');
+        await loadDashboard();
+      } else {
+        addLog(`✗ OCR failed: ${ocrData.detail}`, 'err');
+      }
+    } else {
+      addLog(`✗ Page replacement failed: ${data.detail}`, 'err');
+    }
+  } catch(e) {
+    addLog(`✗ Pipeline error: ${e.message}`, 'err');
+  }
+}
+
+async function generateDerivatives() {
+  if (!currentItem || currentScans.length === 0) return;
+  addLog(`Generating derivatives for ${currentScans.length} scan(s)...`, 'info');
+  showLog();
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/generate-derivatives`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        item_id: currentItem.item_id,
+        scans: currentScans.map(s => ({
+          scan_id: s.scan_id,
+          master_filename: s.master_filename,
+          folder: s.folder,
+        })),
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      addLog(`✓ Generated ${data.jpgs_created} JPGs and ${data.pngs_created} PNGs`, 'ok');
+      showToast('Derivatives generated');
+      await loadDashboard();
+    } else {
+      addLog(`✗ Failed: ${data.detail}`, 'err');
+    }
+  } catch(e) {
+    addLog(`✗ Error: ${e.message}`, 'err');
+  }
+}
+
+// ── LOG ───────────────────────────────────────────────────────────────────────
+function showLog() {
+  const box = document.getElementById('logBox');
+  if (box) box.classList.add('visible');
+}
+
+function addLog(msg, type = 'info') {
+  logLines.push({ msg, type });
+  const box = document.getElementById('logBox');
+  if (box) {
+    box.innerHTML = logLines.map(l =>
+      `<div class="log-line ${l.type === 'ok' ? 'ok' : l.type === 'err' ? 'err' : 'info'}">${l.msg}</div>`
+    ).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
