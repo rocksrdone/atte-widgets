@@ -188,8 +188,8 @@ body {
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-const BACKEND_URL = 'YOUR_BACKEND_URL'; // e.g. https://atte-api.yourdomain.com
-const GRIST_DOC_ID = 'sU9aJthLkBs7FmMhcH6LAd';
+// BACKEND_URL is set via Grist widget options — never hardcoded
+let BACKEND_URL = '';
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let currentItem = null;
@@ -199,7 +199,31 @@ let logVisible = false;
 let logLines = [];
 
 // ── GRIST SETUP ──────────────────────────────────────────────────────────────
-grist.ready({ requiredAccess: 'full', columns: [] });
+grist.ready({
+  requiredAccess: 'full',
+  columns: [],
+  allowSelectBy: false,
+  widgetOptions: {
+    backendUrl: {
+      label: 'Backend URL',
+      type: 'string',
+      placeholder: 'http://your-backend-url',
+    }
+  }
+});
+
+grist.onOptions((options) => {
+  if (options && options.backendUrl) {
+    BACKEND_URL = options.backendUrl.replace(/\/$/, ''); // remove trailing slash
+  }
+  if (!BACKEND_URL) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        ⚙️ Backend URL not configured.<br><br>
+        Click the widget settings (gear icon) and enter your backend URL.
+      </div>`;
+  }
+});
 
 grist.onRecord(async (record) => {
   if (!record || !record.item_id) {
