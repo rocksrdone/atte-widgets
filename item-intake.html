@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATTE — Item Intake</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+:root{
+  --ledger:#E7EBE3;
+  --ledger-alt:#DFE4DA;
+  --field:#FBFCFA;
+  --ink:#1E2320;
+  --ink-soft:#5C655A;
+  --rule:#C4CCBE;
+  --rule-hard:#9AA694;
+  --stamp:#24506E;
+  --stamp-soft:#E1EAF1;
+  --madder:#7A2E3B;
+  --ok:#2F6B4F;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ledger);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:13px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+
+/* ---------- structural ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:10px 14px 40px}
+.eyebrow{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-soft);
+}
+.rule{height:1px;background:var(--rule);margin:10px 0}
+.rule-hard{height:2px;background:var(--rule-hard)}
+
+/* ---------- register header ---------- */
+.register{
+  border:1px solid var(--rule-hard);
+  background:linear-gradient(var(--field),var(--field));
+  padding:9px 12px 11px;
+  position:sticky;top:0;z-index:20;
+  box-shadow:0 2px 0 rgba(30,35,32,.06);
+}
+.register-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.register-top h1{
+  margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+  text-transform:uppercase;font-weight:600;
+}
+.status{
+  margin-left:auto;font-family:var(--mono);font-size:11px;
+  padding:2px 8px;border:1px solid var(--rule-hard);background:var(--ledger-alt);
+}
+.status.ok{background:#E4EFE7;border-color:var(--ok);color:var(--ok)}
+.status.err{background:#F4E3E6;border-color:var(--madder);color:var(--madder)}
+.status.busy{background:var(--stamp-soft);border-color:var(--stamp);color:var(--stamp)}
+
+.ctx{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:8px 12px}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.f label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.f input,.f select,.f textarea{
+  background:var(--field);border:1px solid var(--rule-hard);border-radius:0;
+  padding:5px 7px;width:100%;
+}
+.f input:focus,.f select:focus,.f textarea:focus,button:focus-visible{
+  outline:2px solid var(--stamp);outline-offset:1px;
+}
+.f textarea{resize:vertical;min-height:46px}
+.f .title-input{font-family:var(--serif);font-size:16px;padding:7px 8px}
+
+/* ---------- body grid ---------- */
+.cols{display:grid;grid-template-columns:1fr 300px;gap:16px;margin-top:14px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+
+.panel{border:1px solid var(--rule-hard);background:var(--field);padding:11px 12px 13px}
+.panel + .panel{margin-top:14px}
+.panel-head{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+.panel-head .n{font-family:var(--mono);font-size:10px;color:var(--stamp);letter-spacing:.1em}
+
+/* ---------- chips ---------- */
+.chips{display:grid;gap:5px}
+.chips.cat{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
+.chips.cond{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
+.chip{
+  display:flex;align-items:center;gap:7px;text-align:left;
+  background:var(--field);border:1px solid var(--rule);border-radius:0;
+  padding:5px 7px;cursor:pointer;
+}
+.chip:hover{border-color:var(--rule-hard);background:var(--ledger-alt)}
+.chip[aria-pressed="true"]{
+  background:var(--stamp-soft);border-color:var(--stamp);
+  box-shadow:inset 2px 0 0 var(--stamp);
+}
+.key{
+  font-family:var(--mono);font-size:9px;letter-spacing:.06em;
+  border:1px solid var(--rule-hard);padding:1px 4px;color:var(--ink-soft);
+  background:var(--ledger);flex:none;
+}
+.chip[aria-pressed="true"] .key{border-color:var(--stamp);color:var(--stamp)}
+
+/* ---------- actions ---------- */
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.btn{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--ink);background:var(--ink);color:var(--field);
+  padding:8px 14px;cursor:pointer;border-radius:0;
+}
+.btn:hover{background:#000}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule-hard)}
+.btn.ghost:hover{background:var(--ledger-alt)}
+.btn.danger{background:transparent;color:var(--madder);border-color:var(--madder)}
+.btn.danger:hover{background:#F4E3E6}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.small{padding:4px 8px;font-size:10px}
+
+/* ---------- accession rail (signature) ---------- */
+.rail{border:1px solid var(--rule-hard);background:var(--field)}
+.rail-head{
+  padding:9px 12px;border-bottom:2px solid var(--rule-hard);
+  display:flex;align-items:baseline;gap:8px;
+}
+.tally{font-family:var(--mono);font-size:26px;line-height:1;font-weight:600;letter-spacing:-.02em}
+.tally-lab{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.filed{list-style:none;margin:0;padding:0;max-height:340px;overflow:auto}
+.filed li{
+  padding:6px 12px;border-bottom:1px solid var(--rule);
+  display:grid;grid-template-columns:1fr auto;gap:2px 8px;
+}
+.filed li:nth-child(even){background:var(--ledger)}
+.acc{font-family:var(--mono);font-size:12px;color:var(--stamp);letter-spacing:.04em}
+.acc.pending{color:var(--ink-soft);font-style:italic}
+.filed .t{grid-column:1/-1;font-family:var(--serif);font-size:13px;color:var(--ink-soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filed .cost{font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+.empty{padding:14px 12px;color:var(--ink-soft);font-size:12px}
+@keyframes stamp{0%{transform:scale(1.25);opacity:0}60%{transform:scale(.97);opacity:1}100%{transform:scale(1)}}
+.filed li.new .acc{display:inline-block;animation:stamp .22s ease-out}
+@media (prefers-reduced-motion:reduce){.filed li.new .acc{animation:none}}
+
+/* ---------- tools ---------- */
+.tool-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.note{font-size:11px;color:var(--ink-soft);margin:7px 0 0}
+details{border-top:1px solid var(--rule);margin-top:12px;padding-top:8px}
+summary{cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-soft)}
+pre.diag{font-family:var(--mono);font-size:10.5px;white-space:pre-wrap;word-break:break-word;
+  background:var(--ledger);border:1px solid var(--rule);padding:8px;max-height:280px;overflow:auto;margin:8px 0 0}
+.err-banner{
+  border:1px solid var(--madder);background:#F4E3E6;color:var(--madder);
+  padding:8px 10px;margin-bottom:10px;font-size:12px;
+}
+.err-banner strong{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:block}
+.badge{font-family:var(--mono);font-size:11px;background:var(--ledger-alt);border:1px solid var(--rule-hard);padding:2px 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="errBanner" class="err-banner" hidden></div>
+
+  <!-- ===== register header: sticky lot context ===== -->
+  <section class="register" aria-label="Lot context">
+    <div class="register-top">
+      <h1>Item intake</h1>
+      <span class="eyebrow">Lot header applies to every item you file</span>
+      <span id="status" class="status">Connecting…</span>
+    </div>
+    <div class="ctx">
+      <div class="f">
+        <label for="ctxLot">Lot</label>
+        <select id="ctxLot"><option value="0">— none —</option></select>
+      </div>
+      <div class="f">
+        <label for="ctxSource">Source</label>
+        <select id="ctxSource"><option value="0">— none —</option></select>
+      </div>
+      <div class="f">
+        <label for="ctxDate">Acquired</label>
+        <input type="date" id="ctxDate">
+      </div>
+      <div class="f">
+        <label for="ctxLoc">Storage location</label>
+        <input type="text" id="ctxLoc" placeholder="Bin 4, shelf B">
+      </div>
+      <div class="f">
+        <label for="ctxScan">Will be scanned</label>
+        <select id="ctxScan">
+          <option value="auto">Auto (yes for ephemera)</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="f">
+        <label for="ctxStatus">Status</label>
+        <select id="ctxStatus">
+          <option>In stock</option><option>Listed</option><option>Reserved</option>
+          <option>Pulled</option><option>Parts only - digital</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <!-- ===== entry form ===== -->
+    <div>
+      <section class="panel">
+        <div class="panel-head"><span class="n">01</span><span class="eyebrow">What is it</span></div>
+
+        <div class="f" style="margin-bottom:10px">
+          <label for="fTitle">Title <span class="badge" id="prefixBadge">—</span></label>
+          <input type="text" id="fTitle" class="title-input" placeholder="1947 Detroit Tigers scorecard" autocomplete="off">
+        </div>
+
+        <div class="eyebrow" style="margin-bottom:5px">Category — sets the ID prefix</div>
+        <div class="chips cat" id="catChips"></div>
+
+        <div class="rule"></div>
+
+        <div class="ctx">
+          <div class="f">
+            <label for="fYear">Year (fills era)</label>
+            <input type="number" id="fYear" placeholder="1947" min="1500" max="2035" step="1" autocomplete="off">
+          </div>
+          <div class="f" style="grid-column:span 2">
+            <label for="fEra">Era</label>
+            <select id="fEra"></select>
+          </div>
+          <div class="f">
+            <label for="fCost">Cost basis (USD)</label>
+            <input type="number" id="fCost" step="0.01" min="0" placeholder="0.00" autocomplete="off">
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span class="n">02</span><span class="eyebrow">Condition &amp; notes</span></div>
+        <div class="chips cond" id="condChips"></div>
+        <div class="rule"></div>
+        <div class="tool-row">
+          <div class="f">
+            <label for="fCondNotes">Condition notes</label>
+            <textarea id="fCondNotes" placeholder="Soft corner crease, no tears"></textarea>
+          </div>
+          <div class="f">
+            <label for="fNotes">Notes to self (feeds research)</label>
+            <textarea id="fNotes" placeholder="Printer's mark lower left, gilt edge"></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnSave">File item <span class="key" style="background:transparent;border-color:currentColor;color:inherit">Ctrl ↵</span></button>
+          <button class="btn ghost" id="btnDup">File &amp; keep fields <span class="key">Ctrl ⇧ ↵</span></button>
+          <button class="btn ghost" id="btnClear">Clear <span class="key">Esc</span></button>
+          <button class="btn danger" id="btnUndo" disabled>Undo last</button>
+        </div>
+        <p class="note">Hold Alt and press a key legend to pick a category or grade without leaving the keyboard.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span class="n">03</span><span class="eyebrow">Spread a lot cost across its items</span></div>
+        <div class="ctx">
+          <div class="f">
+            <label for="allocLot">Lot</label>
+            <select id="allocLot"><option value="0">— pick a lot —</option></select>
+          </div>
+          <div class="f">
+            <label for="allocTotal">Total paid (USD)</label>
+            <input type="number" id="allocTotal" step="0.01" min="0" placeholder="45.00">
+          </div>
+          <div class="f">
+            <label for="allocMode">Split</label>
+            <select id="allocMode">
+              <option value="even">Evenly</option>
+              <option value="weight">By current cost as weight</option>
+            </select>
+          </div>
+          <div class="f">
+            <label>&nbsp;</label>
+            <button class="btn ghost" id="btnAlloc">Preview split</button>
+          </div>
+        </div>
+        <p class="note" id="allocNote">Rounds to whole cents and puts any remainder on the first item, so the parts always add up to the total.</p>
+      </section>
+
+      <details>
+        <summary>Diagnostics</summary>
+        <pre class="diag" id="diag">Waiting for Grist…</pre>
+        <div class="actions">
+          <button class="btn ghost small" id="btnReload">Reload lots &amp; sources</button>
+        </div>
+        <div class="tool-row" style="margin-top:8px">
+          <div class="f">
+            <label for="labLots">Label column for Lots</label>
+            <select id="labLots"><option value="">auto</option></select>
+          </div>
+          <div class="f">
+            <label for="labSources">Label column for Sources</label>
+            <select id="labSources"><option value="">auto</option></select>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ===== accession rail ===== -->
+    <aside>
+      <div class="rail">
+        <div class="rail-head">
+          <span class="tally" id="tally">0</span>
+          <span class="tally-lab">filed this session<br><span id="tallySum">$0.00 cost</span></span>
+        </div>
+        <ul class="filed" id="filed"></ul>
+        <div class="empty" id="filedEmpty">Nothing filed yet. The accession number appears here the moment Grist assigns it.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Schema constants — mirror the Items table in Grist
+   ============================================================ */
+const CATEGORIES = [
+  ["Ephemera - Paper",          "EPH",   "1"],
+  ["Ephemera - Postcard",       "EPH",   "2"],
+  ["Ephemera - Photo",          "EPH",   "3"],
+  ["Ephemera - Book",           "EPH",   "4"],
+  ["Ephemera - Cookbook",       "EPH",   "5"],
+  ["Ephemera - Ad/Menu/Receipt","EPH",   "6"],
+  ["Retro Gaming",              "GAME",  "7"],
+  ["Music - Physical",          "MUSIC", "8"],
+  ["DVD / VHS",                 "MEDIA", "9"],
+  ["Vintage Toy",               "TOY",   "0"],
+  ["Office/Small Goods",        "SMGDS", "-"],
+  ["Other",                     "SMGDS", "="]
+];
+const CONDITIONS = [
+  ["Excellent","q"],["Very Good","w"],["Good","e"],["Fair","r"],["Poor","t"]
+];
+const ERAS = ["","Pre-1900","1900-1909","1910-1919","1920-1929","1930-1939","1940-1949",
+  "1950-1959","1960-1969","1970-1979","1980-1989","1990-1999","2000-2009",
+  "Victorian (1837-1901)","Edwardian (1901-1910)","WWI era (1914-1918)",
+  "Prohibition era (1920-1933)","Great Depression (1929-1939)","WWII era (1939-1945)",
+  "Post-war (1945-1955)","Atomic age (1945-1965)","Space age (1957-1969)",
+  "Psychedelic era (1965-1975)","Disco era (1975-1980)","Early computing (1975-1990)",
+  "Reagan era (1980-1988)","Grunge era (1990-1996)","Y2K era (1995-2005)",
+  "Unknown","Mixed / Various"];
+
+/* ============================================================
+   Small helpers
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const diagLines = [];
+
+function log(msg){
+  diagLines.push(new Date().toLocaleTimeString() + "  " + msg);
+  if (diagLines.length > 200) diagLines.shift();
+  $("diag").textContent = diagLines.join("\n");
+}
+function setStatus(text, kind){
+  const el = $("status");
+  el.textContent = text;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+function showError(msg){
+  const b = $("errBanner");
+  b.hidden = false;
+  b.innerHTML = "<strong>Something went wrong</strong>" + msg;
+  log("ERROR: " + msg);
+}
+function clearError(){ $("errBanner").hidden = true; }
+
+/* Grist fetchTable returns columns, not rows: {id:[1,2], title:["a","b"]} */
+function toRows(tbl){
+  if (!tbl) return [];
+  const keys = Object.keys(tbl);
+  if (!keys.length) return [];
+  const n = (tbl.id || tbl[keys[0]] || []).length;
+  const out = [];
+  for (let i = 0; i < n; i++){
+    const r = {};
+    for (const k of keys) r[k] = tbl[k][i];
+    out.push(r);
+  }
+  return out;
+}
+
+/* Reference cells arrive as 5, ['R','Lots',5] or {id:5} depending on context */
+function refId(v){
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return v;
+  if (Array.isArray(v)) return (v[0] === "R" || v[0] === "r") ? Number(v[2]) || 0 : 0;
+  if (typeof v === "object" && "id" in v) return Number(v.id) || 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* Grist Date columns hold seconds since epoch at UTC midnight */
+function ymdToEpoch(ymd){
+  if (!ymd) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  return Date.UTC(+m[1], +m[2] - 1, +m[3]) / 1000;
+}
+function todayYmd(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function money(n){ return "$" + (Math.round(n * 100) / 100).toFixed(2); }
+
+function eraForYear(y){
+  if (!Number.isFinite(y)) return "";
+  if (y < 1900) return "Pre-1900";
+  if (y > 2009) return "";
+  const start = Math.floor(y / 10) * 10;
+  return start + "-" + (start + 9);
+}
+
+/* Guess which column of a lookup table to show in a dropdown */
+function pickLabelCol(rows){
+  if (!rows.length) return "id";
+  const keys = Object.keys(rows[0]).filter(k => k !== "id" && k !== "manualSort");
+  const score = k => {
+    const s = k.toLowerCase();
+    if (/(^|_)(name|label|title)($|_)/.test(s)) return 0;
+    if (/name|label|title/.test(s)) return 1;
+    if (/lot|source|seller|vendor|venue|desc|event/.test(s)) return 2;
+    if (/date|cost|price|total|qty|count|num/.test(s)) return 8;
+    return 5;
+  };
+  const textual = keys.filter(k => rows.some(r => typeof r[k] === "string" && r[k].trim()));
+  const pool = textual.length ? textual : keys;
+  return pool.sort((a, b) => score(a) - score(b))[0] || "id";
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  ready:false,
+  category:"",
+  prefix:"",
+  condition:"",
+  lots:[], sources:[],
+  labelCols:{Lots:"", Sources:""},
+  filed:[],           // {rowId, itemId, title, cost}
+  tables:[]
+};
+
+/* ============================================================
+   Build the chip controls
+   ============================================================ */
+function buildChips(){
+  const cat = $("catChips");
+  CATEGORIES.forEach(([name, prefix, key]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.setAttribute("aria-pressed", "false");
+    b.dataset.value = name;
+    b.dataset.prefix = prefix;
+    b.dataset.key = key;
+    b.innerHTML = '<span class="key">' + key + '</span><span>' + name + '</span>';
+    b.addEventListener("click", () => selectCategory(name));
+    cat.appendChild(b);
+  });
+
+  const cond = $("condChips");
+  CONDITIONS.forEach(([name, key]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.setAttribute("aria-pressed", "false");
+    b.dataset.value = name;
+    b.dataset.key = key;
+    b.innerHTML = '<span class="key">' + key.toUpperCase() + '</span><span>' + name + '</span>';
+    b.addEventListener("click", () => selectCondition(name));
+    cond.appendChild(b);
+  });
+
+  const era = $("fEra");
+  ERAS.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = v || "— none —";
+    era.appendChild(o);
+  });
+}
+
+function selectCategory(name){
+  state.category = name;
+  const row = CATEGORIES.find(c => c[0] === name);
+  state.prefix = row ? row[1] : "";
+  $("prefixBadge").textContent = state.prefix || "—";
+  [...$("catChips").children].forEach(c =>
+    c.setAttribute("aria-pressed", String(c.dataset.value === name)));
+}
+function selectCondition(name){
+  state.condition = name;
+  [...$("condChips").children].forEach(c =>
+    c.setAttribute("aria-pressed", String(c.dataset.value === name)));
+}
+
+/* ============================================================
+   Grist wiring
+   ============================================================ */
+async function loadLookups(){
+  setStatus("Loading lots…", "busy");
+  try {
+    state.tables = (await grist.docApi.listTables()) || [];
+    log("Tables: " + state.tables.join(", "));
+  } catch (e){
+    log("listTables failed: " + e.message);
+  }
+
+  for (const t of ["Lots", "Sources"]){
+    try {
+      const rows = toRows(await grist.docApi.fetchTable(t));
+      state[t.toLowerCase()] = rows;
+      const chosen = state.labelCols[t] || pickLabelCol(rows);
+      state.labelCols[t] = chosen;
+      log(t + ": " + rows.length + " rows, label column = " + chosen);
+      fillLabelPicker(t, rows, chosen);
+    } catch (e){
+      state[t.toLowerCase()] = [];
+      log("fetchTable('" + t + "') failed: " + e.message);
+      showError("Could not read the " + t + " table. In the widget panel, set Access to " +
+        "<b>Full document access</b> — without it Grist returns nothing and gives no error.");
+    }
+  }
+  fillSelect("ctxLot", state.lots, state.labelCols.Lots);
+  fillSelect("allocLot", state.lots, state.labelCols.Lots);
+  fillSelect("ctxSource", state.sources, state.labelCols.Sources);
+  setStatus("Ready", "ok");
+}
+
+function fillSelect(id, rows, labelCol){
+  const sel = $(id);
+  const prev = sel.value;
+  sel.innerHTML = '<option value="0">— none —</option>';
+  rows.forEach(r => {
+    const o = document.createElement("option");
+    o.value = String(r.id);
+    const raw = r[labelCol];
+    o.textContent = (raw === null || raw === undefined || raw === "")
+      ? ("row " + r.id) : String(raw);
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+function fillLabelPicker(table, rows, chosen){
+  const sel = $(table === "Lots" ? "labLots" : "labSources");
+  sel.innerHTML = '<option value="">auto</option>';
+  if (!rows.length) return;
+  Object.keys(rows[0]).forEach(k => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = k;
+    sel.appendChild(o);
+  });
+  sel.value = chosen;
+}
+
+async function saveOptions(){
+  try {
+    await grist.widgetApi.setOptions({
+      labelCols: state.labelCols,
+      lastLot: $("ctxLot").value,
+      lastSource: $("ctxSource").value,
+      lastDate: $("ctxDate").value,
+      lastLoc: $("ctxLoc").value
+    });
+  } catch (e){ log("setOptions failed: " + e.message); }
+}
+
+/* ============================================================
+   Filing an item
+   ============================================================ */
+function collect(){
+  const title = $("fTitle").value.trim();
+  if (!title) return {error:"Give the item a title before filing it."};
+  if (!state.category) return {error:"Pick a category — it sets the ID prefix."};
+
+  const scanSel = $("ctxScan").value;
+  const willScan = scanSel === "auto"
+    ? (state.prefix === "EPH" ? "Yes" : "No")
+    : scanSel;
+
+  const cost = parseFloat($("fCost").value);
+  const fields = {
+    prefix: state.prefix,
+    title: title,
+    category: state.category,
+    era: $("fEra").value || "",
+    condition_grade: state.condition || "",
+    condition_notes: $("fCondNotes").value.trim(),
+    notes: $("fNotes").value.trim(),
+    cost_basis_usd: Number.isFinite(cost) ? cost : 0,
+    location_notes: $("ctxLoc").value.trim(),
+    status: $("ctxStatus").value,
+    will_be_scanned: willScan,
+    lot_id: Number($("ctxLot").value) || 0,
+    acquired_source: Number($("ctxSource").value) || 0
+  };
+  const epoch = ymdToEpoch($("ctxDate").value);
+  if (epoch !== null) fields.acquired_date = epoch;
+
+  return {fields:fields};
+}
+
+async function fileItem(keepFields){
+  if (!state.ready) return;
+  clearError();
+  const got = collect();
+  if (got.error){ setStatus(got.error, "err"); return; }
+
+  setStatus("Filing…", "busy");
+  let rowId;
+  try {
+    const res = await grist.docApi.applyUserActions([["AddRecord", "Items", null, got.fields]]);
+    rowId = res && res.retValues && res.retValues[0];
+    if (!rowId) throw new Error("Grist did not return a row id");
+  } catch (e){
+    setStatus("Not filed", "err");
+    showError("Grist rejected the new record: " + e.message +
+      " — if this mentions access, set the widget to <b>Full document access</b>.");
+    return;
+  }
+
+  const entry = {rowId:rowId, itemId:null, title:got.fields.title, cost:got.fields.cost_basis_usd};
+  state.filed.unshift(entry);
+  renderFiled(true);
+  $("btnUndo").disabled = false;
+
+  // Grist's trigger formula assigns item_id after the write — read it back.
+  try {
+    const items = toRows(await grist.docApi.fetchTable("Items"));
+    const hit = items.find(r => r.id === rowId);
+    entry.itemId = hit && hit.item_id ? String(hit.item_id) : "(no item_id)";
+  } catch (e){
+    entry.itemId = "(unread)";
+    log("Could not read back item_id: " + e.message);
+  }
+  renderFiled(false);
+  setStatus("Filed " + (entry.itemId || "item"), "ok");
+  saveOptions();
+
+  resetForm(keepFields);
+  $("fTitle").focus();
+  if (keepFields) $("fTitle").select();
+}
+
+function resetForm(keepFields){
+  $("fTitle").value = "";
+  $("fCondNotes").value = "";
+  $("fNotes").value = "";
+  if (!keepFields){
+    $("fCost").value = "";
+    $("fYear").value = "";
+    $("fEra").value = "";
+    selectCondition("");
+    state.condition = "";
+    [...$("condChips").children].forEach(c => c.setAttribute("aria-pressed", "false"));
+  }
+}
+
+async function undoLast(){
+  const last = state.filed[0];
+  if (!last) return;
+  setStatus("Removing…", "busy");
+  try {
+    await grist.docApi.applyUserActions([["RemoveRecord", "Items", last.rowId]]);
+    state.filed.shift();
+    renderFiled(false);
+    setStatus("Removed " + (last.itemId || "last item"), "ok");
+  } catch (e){
+    setStatus("Could not remove", "err");
+    showError("Removing the last record failed: " + e.message);
+  }
+  $("btnUndo").disabled = state.filed.length === 0;
+}
+
+function renderFiled(markNew){
+  const ul = $("filed");
+  ul.innerHTML = "";
+  state.filed.slice(0, 40).forEach((f, i) => {
+    const li = document.createElement("li");
+    if (markNew && i === 0) li.className = "new";
+    const acc = document.createElement("span");
+    acc.className = "acc" + (f.itemId ? "" : " pending");
+    acc.textContent = f.itemId || "assigning…";
+    const cost = document.createElement("span");
+    cost.className = "cost";
+    cost.textContent = f.cost ? money(f.cost) : "";
+    const t = document.createElement("span");
+    t.className = "t";
+    t.textContent = f.title;
+    li.append(acc, cost, t);
+    ul.appendChild(li);
+  });
+  $("filedEmpty").hidden = state.filed.length > 0;
+  $("tally").textContent = state.filed.length;
+  const sum = state.filed.reduce((a, f) => a + (f.cost || 0), 0);
+  $("tallySum").textContent = money(sum) + " cost";
+}
+
+/* ============================================================
+   Lot cost allocation
+   ============================================================ */
+let allocPlan = null;
+
+async function previewAlloc(){
+  clearError();
+  const lotId = Number($("allocLot").value) || 0;
+  const total = parseFloat($("allocTotal").value);
+  if (!lotId){ $("allocNote").textContent = "Pick a lot first."; return; }
+  if (!Number.isFinite(total) || total <= 0){ $("allocNote").textContent = "Enter what you paid for the lot."; return; }
+
+  let items;
+  try {
+    items = toRows(await grist.docApi.fetchTable("Items")).filter(r => refId(r.lot_id) === lotId);
+  } catch (e){
+    showError("Could not read Items: " + e.message);
+    return;
+  }
+  if (!items.length){ $("allocNote").textContent = "No items are assigned to that lot yet."; return; }
+
+  const mode = $("allocMode").value;
+  const weights = items.map(r => Number(r.cost_basis_usd) || 0);
+  const wSum = weights.reduce((a, b) => a + b, 0);
+  const useWeights = mode === "weight" && wSum > 0;
+
+  const totalCents = Math.round(total * 100);
+  let cents = items.map((r, i) =>
+    useWeights ? Math.floor(totalCents * weights[i] / wSum)
+               : Math.floor(totalCents / items.length));
+  const remainder = totalCents - cents.reduce((a, b) => a + b, 0);
+  cents[0] += remainder;
+
+  allocPlan = {
+    ids: items.map(r => r.id),
+    values: cents.map(c => c / 100),
+    label: items.length + " items"
+  };
+  $("allocNote").innerHTML =
+    "Ready to write " + money(total) + " across <b>" + items.length + " items</b>" +
+    (useWeights ? " weighted by their current cost" : " evenly") +
+    " — " + money(allocPlan.values[0]) + " to the first, " +
+    money(allocPlan.values[allocPlan.values.length - 1]) + " to the last. " +
+    "<button class='btn small' id='btnAllocGo'>Write these costs</button>";
+  $("btnAllocGo").addEventListener("click", applyAlloc);
+}
+
+async function applyAlloc(){
+  if (!allocPlan) return;
+  setStatus("Writing costs…", "busy");
+  try {
+    await grist.docApi.applyUserActions([
+      ["BulkUpdateRecord", "Items", allocPlan.ids, {cost_basis_usd: allocPlan.values}]
+    ]);
+    setStatus("Costs written to " + allocPlan.label, "ok");
+    $("allocNote").textContent = "Done — " + allocPlan.label + " updated.";
+    allocPlan = null;
+  } catch (e){
+    setStatus("Costs not written", "err");
+    showError("Updating cost basis failed: " + e.message);
+  }
+}
+
+/* ============================================================
+   Keyboard
+   ============================================================ */
+function wireKeys(){
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      fileItem(e.shiftKey);
+      return;
+    }
+    if (e.key === "Escape"){
+      e.preventDefault();
+      resetForm(false);
+      $("fTitle").focus();
+      return;
+    }
+    if (e.altKey && !e.ctrlKey && !e.metaKey){
+      const k = e.key.toLowerCase();
+      const cat = CATEGORIES.find(c => c[2] === k);
+      if (cat){ e.preventDefault(); selectCategory(cat[0]); return; }
+      const cond = CONDITIONS.find(c => c[1] === k);
+      if (cond){ e.preventDefault(); selectCondition(cond[0]); return; }
+    }
+  });
+
+  $("fYear").addEventListener("input", () => {
+    const era = eraForYear(parseInt($("fYear").value, 10));
+    if (era) $("fEra").value = era;
+  });
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+function wireUi(){
+  $("btnSave").addEventListener("click", () => fileItem(false));
+  $("btnDup").addEventListener("click", () => fileItem(true));
+  $("btnClear").addEventListener("click", () => { resetForm(false); $("fTitle").focus(); });
+  $("btnUndo").addEventListener("click", undoLast);
+  $("btnAlloc").addEventListener("click", previewAlloc);
+  $("btnReload").addEventListener("click", loadLookups);
+  ["ctxLot","ctxSource","ctxDate","ctxLoc"].forEach(id =>
+    $(id).addEventListener("change", saveOptions));
+  $("labLots").addEventListener("change", e => {
+    state.labelCols.Lots = e.target.value || pickLabelCol(state.lots);
+    fillSelect("ctxLot", state.lots, state.labelCols.Lots);
+    fillSelect("allocLot", state.lots, state.labelCols.Lots);
+    saveOptions();
+  });
+  $("labSources").addEventListener("change", e => {
+    state.labelCols.Sources = e.target.value || pickLabelCol(state.sources);
+    fillSelect("ctxSource", state.sources, state.labelCols.Sources);
+    saveOptions();
+  });
+}
+
+async function boot(){
+  buildChips();
+  wireUi();
+  wireKeys();
+  $("ctxDate").value = todayYmd();
+  selectCategory("Ephemera - Paper");
+
+  if (typeof grist === "undefined"){
+    setStatus("Not inside Grist", "err");
+    showError("This page only works as a Grist custom widget.");
+    return;
+  }
+
+  grist.ready({requiredAccess: "full"});
+
+  try {
+    const opts = (await grist.widgetApi.getOptions()) || {};
+    if (opts.labelCols) state.labelCols = Object.assign(state.labelCols, opts.labelCols);
+    if (opts.lastDate) $("ctxDate").value = opts.lastDate;
+    if (opts.lastLoc) $("ctxLoc").value = opts.lastLoc;
+    await loadLookups();
+    if (opts.lastLot) $("ctxLot").value = opts.lastLot;
+    if (opts.lastSource) $("ctxSource").value = opts.lastSource;
+  } catch (e){
+    log("Options load failed: " + e.message);
+    await loadLookups();
+  }
+
+  state.ready = true;
+  $("fTitle").focus();
+  log("Widget ready.");
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
