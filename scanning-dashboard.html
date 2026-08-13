@@ -13,7 +13,6 @@
   --warm: #E8DFD4;
   --rule: #D4C9BC;
   --accent: #8B3A2A;
-  --accent-light: #F2E8E5;
   --teal: #3A8B7A;
   --teal-light: #E5F2EF;
   --gold: #B07D2A;
@@ -41,14 +40,6 @@ body {
 }
 .header-title { font-family: 'Libre Baskerville', serif; font-size: 18px; font-weight: 700; }
 .header-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
-.bridge-status {
-  font-family: 'DM Mono', monospace; font-size: 10px;
-  padding: 3px 8px; border-radius: 4px; white-space: nowrap;
-}
-.bridge-ok { background: var(--done-bg); color: var(--done-text); }
-.bridge-err { background: var(--warn-bg); color: var(--warn-text); }
-
-/* Item bar */
 .item-bar {
   background: white; border: 1px solid var(--rule); border-radius: 8px;
   padding: 10px 12px; margin-bottom: 10px;
@@ -63,26 +54,20 @@ body {
 .badge-parts { background: var(--gold-light); color: var(--gold); }
 .badge-stock { background: var(--teal-light); color: var(--teal); }
 .badge-sold { background: var(--done-bg); color: var(--done-text); }
-
-/* Tabs */
-.tabs { display: flex; gap: 2px; margin-bottom: 10px; }
+.tabs { display: flex; gap: 2px; margin-bottom: 0; }
 .tab {
   padding: 6px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
   border: 1px solid var(--rule); border-radius: 6px 6px 0 0;
-  background: var(--warm); color: var(--muted);
-  border-bottom: none;
+  background: var(--warm); color: var(--muted); border-bottom: none;
 }
 .tab.active { background: white; color: var(--ink); border-bottom: 1px solid white; margin-bottom: -1px; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
-
-/* Section */
 .section {
   background: white; border: 1px solid var(--rule); border-radius: 0 8px 8px 8px;
   padding: 12px 14px; margin-bottom: 10px;
 }
-
-/* Workflow steps */
+/* Steps */
 .step-list { display: flex; flex-direction: column; gap: 8px; }
 .step {
   display: flex; align-items: flex-start; gap: 10px;
@@ -91,7 +76,7 @@ body {
 }
 .step.done { background: var(--done-bg); border-color: var(--done-border); }
 .step.active { background: white; border-color: var(--accent); border-width: 2px; }
-.step.pending { opacity: .6; }
+.step.pending { opacity: .55; }
 .step-icon {
   width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -101,66 +86,48 @@ body {
 .step.active .step-icon { background: var(--accent); color: white; }
 .step.pending .step-icon { background: var(--warm); color: var(--muted); }
 .step-body { flex: 1; }
-.step-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-.step-desc { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-.step-cmd {
+.step-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.step-desc { font-size: 11px; color: var(--muted); margin-bottom: 6px; line-height: 1.6; }
+.cmd-box {
   font-family: 'DM Mono', monospace; font-size: 10px;
-  background: var(--warm); padding: 3px 7px; border-radius: 4px;
-  color: var(--ink); display: inline-block; margin-bottom: 6px;
+  background: var(--ink); color: #C8BFAF;
+  padding: 6px 10px; border-radius: 5px; margin-bottom: 4px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
-.step-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.btn {
-  font-size: 11px; padding: 5px 11px; border-radius: 5px; cursor: pointer;
-  border: 1px solid var(--rule); background: white; color: var(--ink);
-  font-family: 'Inter', sans-serif; transition: all .15s;
+.cmd-text { flex: 1; }
+.copy-btn {
+  font-size: 9px; padding: 2px 6px; background: #3a342c; border: none;
+  border-radius: 3px; color: #C8BFAF; cursor: pointer; white-space: nowrap;
 }
-.btn:hover { border-color: var(--accent); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
-.btn-primary:hover { opacity: .9; }
-.btn-teal { background: var(--teal); border-color: var(--teal); color: white; }
-.btn-teal:hover { opacity: .9; }
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-
-/* Status grid */
+.copy-btn:hover { background: var(--accent); color: white; }
+.copy-btn.copied { background: var(--done-border); color: white; }
+.step-note { font-size: 11px; color: var(--done-text); margin-top: 4px; font-style: italic; }
+/* Status */
 .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .status-item {
   padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px;
   background: var(--paper);
 }
 .status-item.ok { background: var(--done-bg); border-color: var(--done-border); }
-.status-item.warn { background: var(--warn-bg); border-color: var(--warn-border); }
+.status-item.na { opacity: .5; }
 .status-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .status-val { font-size: 12px; font-weight: 600; margin-top: 1px; }
 .status-item.ok .status-val { color: var(--done-text); }
-.status-item.warn .status-val { color: var(--warn-text); }
-
-/* Log */
-.log-box {
-  background: var(--ink); color: #B0A898;
-  font-family: 'DM Mono', monospace; font-size: 10px;
-  border-radius: 6px; padding: 8px 10px;
-  max-height: 140px; overflow-y: auto; margin-top: 8px;
+/* Scans list */
+.scan-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.scan-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--paper);
+  font-size: 11px;
 }
-.log-line { margin-bottom: 1px; }
-.log-line.ok { color: #6DBF8F; }
-.log-line.err { color: #E07070; }
-.log-line.info { color: #7DB8D4; }
-
-/* Processor bar */
-.processor-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border: 1px solid var(--rule); border-radius: 6px;
-  background: white; margin-bottom: 8px; font-size: 12px;
-}
-.proc-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
-.proc-dot.running { background: var(--teal); animation: pulse 2s infinite; }
-.proc-dot.stopped { background: var(--rule); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
+.scan-id { font-family: 'DM Mono', monospace; color: var(--accent); min-width: 120px; }
+.scan-pd { font-size: 10px; padding: 1px 6px; border-radius: 3px; }
+.pd-ok { background: var(--done-bg); color: var(--done-text); }
+.pd-warn { background: var(--warn-bg); color: var(--warn-text); }
+.pd-na { background: var(--warm); color: var(--muted); }
 .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-style: italic; }
-.refresh-row { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+.refresh-btn { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; border: 1px solid var(--rule); background: white; color: var(--muted); float: right; margin-bottom: 8px; }
+.refresh-btn:hover { border-color: var(--accent); color: var(--ink); }
 </style>
 </head>
 <body>
@@ -170,7 +137,7 @@ body {
     <div class="header-title">Scanning Dashboard</div>
     <div class="header-sub" id="headerSub">Select an item in the Items table</div>
   </div>
-  <div id="bridgeStatus" class="bridge-status bridge-err">Bridge offline</div>
+  <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
 </div>
 
 <div id="content">
@@ -178,14 +145,10 @@ body {
 </div>
 
 <script>
-const BRIDGE = 'https://127.0.0.1:7742';
 let currentItem = null;
-let statusData = null;
+let allScans = [];
 let activeTab = 'workflow';
-let bridgeOk = false;
-let refreshInterval = null;
 
-// ── GRIST ─────────────────────────────────────────────────────────────────────
 grist.ready({ requiredAccess: 'full', columns: [] });
 
 grist.onRecord(async (record) => {
@@ -193,101 +156,78 @@ grist.onRecord(async (record) => {
     document.getElementById('content').innerHTML =
       '<div class="empty-state">Select a row in the Items table to begin</div>';
     currentItem = null;
-    clearInterval(refreshInterval);
     return;
   }
   currentItem = record;
-  await refresh();
-  clearInterval(refreshInterval);
-  refreshInterval = setInterval(refresh, 8000);
+  await loadData();
 });
 
-// ── BRIDGE CHECK ──────────────────────────────────────────────────────────────
-async function checkBridge() {
-  try {
-    const r = await fetch(`${BRIDGE}/health`, { signal: AbortSignal.timeout(2000) });
-    bridgeOk = r.ok;
-  } catch { bridgeOk = false; }
-  const el = document.getElementById('bridgeStatus');
-  el.textContent = bridgeOk ? '● Bridge online' : '● Bridge offline';
-  el.className = 'bridge-status ' + (bridgeOk ? 'bridge-ok' : 'bridge-err');
-}
-
-// ── REFRESH ───────────────────────────────────────────────────────────────────
-async function refresh() {
-  await checkBridge();
+async function loadData() {
   if (!currentItem) return;
-  document.getElementById('headerSub').textContent = `${currentItem.item_id} · refreshing...`;
-
-  if (bridgeOk) {
-    try {
-      const r = await fetch(`${BRIDGE}/status/${currentItem.item_id}`);
-      statusData = await r.json();
-    } catch { statusData = null; }
-
-    try {
-      const r = await fetch(`${BRIDGE}/processor/status`);
-      const proc = await r.json();
-      window.processorData = proc;
-    } catch { window.processorData = null; }
-  }
-
+  document.getElementById('headerSub').textContent = `${currentItem.item_id} · loading...`;
+  try {
+    const scansData = await grist.docApi.fetchTable('Scans');
+    const ids = scansData.id || [];
+    allScans = ids.map((id, i) => ({
+      id,
+      scan_id: col(scansData, 'scan_id', i),
+      source_item_id: col(scansData, 'source_item_id', i),
+      page_side: col(scansData, 'page_side', i),
+      pd_status: col(scansData, 'pd_status', i),
+      status: col(scansData, 'status', i),
+      master_filename: col(scansData, 'master_filename', i),
+    }));
+  } catch(e) { allScans = []; }
   render();
-  document.getElementById('headerSub').textContent =
-    `${currentItem.item_id} · ${currentItem.title || ''}`;
+  document.getElementById('headerSub').textContent = `${currentItem.item_id} · ${currentItem.title || ''}`;
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
+function col(table, name, i) {
+  return Array.isArray(table[name]) ? (table[name][i] ?? '') : '';
+}
+
 function render() {
   const item = currentItem;
-  const s = statusData;
-  const proc = window.processorData;
+  const itemScans = allScans.filter(s => {
+    const sid = String(s.source_item_id || '');
+    return sid === String(item.id) || sid === item.item_id;
+  });
+
+  const willScan = item.will_be_scanned === 'Yes';
+  const hasCzur = true; // We derive from Grist fields — assume czur done if scans exist or item entered
+  const hasScans = itemScans.length > 0;
+  const verifiedScans = itemScans.filter(s => s.pd_status === 'Verified PD').length;
+  const allVerified = hasScans && verifiedScans === itemScans.length;
+  const anyListed = (item.status === 'Listed' || item.status === 'Sold');
 
   const statusBadge = item.status === 'Sold' ? 'badge-sold' :
     (item.status || '').includes('Parts') ? 'badge-parts' : 'badge-stock';
 
-  // Determine step states
-  const stepCzur     = s ? s.step_czur : false;
-  const stepFlatbed  = s ? s.step_flatbed : false;
-  const stepPagemap  = s ? s.step_pagemap : false;
-  const stepProcess  = s ? s.step_processed : false;
-  const stepDerivs   = s ? s.step_derivatives : false;
-  const willScan     = (item.will_be_scanned === 'Yes');
+  // Steps: what's done based on Grist data
+  const step1done = true; // item exists in Grist = entered
+  const step2done = willScan ? hasScans : true;
+  const step3done = willScan ? allVerified : true;
+  const step4done = anyListed;
 
-  function stepClass(done, isNext) {
+  function sc(done, isNext) {
     return done ? 'done' : isNext ? 'active' : 'pending';
   }
+  const nextStep = !step1done ? 1 : !step2done ? 2 : !step3done ? 3 : !step4done ? 4 : 5;
 
-  const nextStep = !stepCzur ? 1 : !stepFlatbed && willScan ? 2 :
-    !stepPagemap && willScan ? 3 : !stepProcess ? 4 : !stepDerivs ? 5 : 6;
+  const itemId = item.item_id || '—';
 
   document.getElementById('content').innerHTML = `
     <div class="item-bar">
-      <div class="item-id">${item.item_id || '—'}</div>
+      <div class="item-id">${itemId}</div>
       <div class="item-title">${item.title || 'Untitled'}</div>
       <div style="font-size:11px;color:var(--muted)">${item.era || ''} ${item.category || ''}</div>
       <span class="badge ${statusBadge}">${item.status || 'In stock'}</span>
     </div>
 
-    <!-- Processor bar -->
-    <div class="processor-bar">
-      <div class="proc-dot ${proc && proc.running ? 'running' : 'stopped'}"></div>
-      <span style="font-weight:500">Processor ${proc && proc.running ? 'running' : 'stopped'}</span>
-      <span style="flex:1"></span>
-      ${!proc || !proc.running
-        ? `<button class="btn btn-teal" onclick="runAction('process')">Start processor</button>`
-        : `<span style="font-size:11px;color:var(--muted)">Auto-processing enabled</span>`}
-    </div>
-
-    <div class="refresh-row">
-      <button class="btn" onclick="refresh()">↻ Refresh</button>
-    </div>
-
-    <!-- Tabs -->
     <div class="tabs">
       <div class="tab ${activeTab==='workflow'?'active':''}" onclick="switchTab('workflow')">Workflow</div>
+      <div class="tab ${activeTab==='scans'?'active':''}" onclick="switchTab('scans')">Scans (${itemScans.length})</div>
       <div class="tab ${activeTab==='status'?'active':''}" onclick="switchTab('status')">Status</div>
-      <div class="tab ${activeTab==='log'?'active':''}" onclick="switchTab('log')">Log</div>
     </div>
 
     <!-- WORKFLOW TAB -->
@@ -295,177 +235,176 @@ function render() {
       <div class="section">
         <div class="step-list">
 
-          <!-- Step 1: CZUR scan -->
-          <div class="step ${stepClass(stepCzur, nextStep===1)}">
-            <div class="step-icon">${stepCzur ? '✓' : '1'}</div>
+          <div class="step done">
+            <div class="step-icon">✓</div>
+            <div class="step-body">
+              <div class="step-title">Item entered in Grist</div>
+              <div class="step-desc">Physical item logged with title, category, condition, source, and cost.</div>
+            </div>
+          </div>
+
+          ${willScan ? `
+          <div class="step ${sc(false, nextStep===2)} ">
+            <div class="step-icon">${false ? '✓' : '2'}</div>
             <div class="step-body">
               <div class="step-title">CZUR scan — full item</div>
-              <div class="step-desc">Scan every page with CZUR Studio. Export as PDF, move to incoming folder.</div>
-              <div class="step-cmd">CZUR Studio → Export PDF → czur_combine.sh</div>
-              <div class="step-actions">
-                <button class="btn btn-primary" onclick="runAction('czur-combine')" ${!bridgeOk?'disabled':''}>
-                  Run czur_combine.sh
-                </button>
-                <span style="font-size:10px;color:var(--muted)">or: ~/atte-scanner/czur_combine.sh</span>
+              <div class="step-desc">Scan every page in CZUR Studio. Then run czur_combine.sh to bundle into a PDF.</div>
+              <div class="cmd-box">
+                <span class="cmd-text">~/atte-scanner/czur_combine.sh</span>
+                <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/czur_combine.sh')">Copy</button>
               </div>
-              ${s && s.czur_pdf_name ? `<div style="margin-top:5px;font-size:11px;color:var(--done-text)">✓ ${s.czur_pdf_name}</div>` : ''}
             </div>
           </div>
 
-          <!-- Step 2: Flatbed scan (conditional) -->
-          ${willScan ? `
-          <div class="step ${stepClass(stepFlatbed, nextStep===2)}">
-            <div class="step-icon">${stepFlatbed ? '✓' : '2'}</div>
+          <div class="step ${sc(hasScans, nextStep===3)}">
+            <div class="step-icon">${hasScans ? '✓' : '3'}</div>
             <div class="step-body">
               <div class="step-title">Flatbed scan — image pages</div>
-              <div class="step-desc">Scan image-rich pages on the Epson 13000XL. VueScan saves TIFFs automatically.</div>
-              <div class="step-cmd">scan.sh → pick profile → pick item</div>
-              <div class="step-actions">
-                <button class="btn btn-primary" onclick="runAction('scan')" ${!bridgeOk?'disabled':''}>
-                  Open scan launcher
-                </button>
-                <span style="font-size:10px;color:var(--muted)">or: ~/atte-scanner/scan.sh</span>
+              <div class="step-desc">Scan image-rich pages on the Epson 13000XL. VueScan saves TIFFs automatically to the pages/ subfolder.</div>
+              <div class="cmd-box">
+                <span class="cmd-text">~/atte-scanner/scan.sh → pick profile → pick ${itemId}</span>
+                <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/scan.sh')">Copy</button>
               </div>
-              ${s && s.tiffs_in_workspace > 0 ? `<div style="margin-top:5px;font-size:11px;color:var(--done-text)">✓ ${s.tiffs_in_workspace} TIFF(s) in workspace</div>` : ''}
+              ${hasScans ? `<div class="step-note">✓ ${itemScans.length} scan(s) registered in Grist</div>` : ''}
             </div>
           </div>
 
-          <!-- Step 3: Pagemap -->
-          <div class="step ${stepClass(stepPagemap, nextStep===3)}">
-            <div class="step-icon">${stepPagemap ? '✓' : '3'}</div>
+          <div class="step ${sc(hasScans, nextStep===4)}">
+            <div class="step-icon">${hasScans ? '✓' : '4'}</div>
             <div class="step-body">
               <div class="step-title">Set page map</div>
-              <div class="step-desc">Tell the processor which PDF pages your flatbed scans replace.</div>
-              <div class="step-cmd">pagemap_helper.sh</div>
-              <div class="step-actions">
-                <button class="btn btn-primary" onclick="runAction('pagemap')" ${!bridgeOk?'disabled':''}>
-                  Open pagemap helper
-                </button>
-                <span style="font-size:10px;color:var(--muted)">or: ~/atte-scanner/pagemap_helper.sh</span>
+              <div class="step-desc">Tell the processor which PDF pages your flatbed scans replace. Run before placing files in incoming/.</div>
+              <div class="cmd-box">
+                <span class="cmd-text">~/atte-scanner/pagemap_helper.sh</span>
+                <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/pagemap_helper.sh')">Copy</button>
               </div>
-              ${s && s.pagemap_contents ? `
-                <div style="margin-top:5px;font-size:10px;font-family:monospace;background:var(--warm);padding:4px 7px;border-radius:4px">
-                  ${s.pagemap_contents.replace(/\n/g,'<br>')}
-                </div>` : ''}
             </div>
           </div>
-          ` : ''}
 
-          <!-- Step 4: Process -->
-          <div class="step ${stepClass(stepProcess, nextStep===(willScan?4:2))}">
-            <div class="step-icon">${stepProcess ? '✓' : willScan?'4':'2'}</div>
+          <div class="step ${sc(hasScans, nextStep===5)}">
+            <div class="step-icon">${hasScans ? '✓' : '5'}</div>
             <div class="step-body">
               <div class="step-title">Process — build PDF + derivatives</div>
-              <div class="step-desc">Processor replaces pages, runs OCR, generates JPG and transparent PNG. Runs automatically when files are ready.</div>
-              <div class="step-cmd">python3 ~/atte-processor/atte_processor.py</div>
-              <div class="step-actions">
-                <button class="btn btn-primary" onclick="runAction('process')" ${!bridgeOk?'disabled':''}>
-                  ${proc && proc.running ? 'Processor running ✓' : 'Start processor'}
-                </button>
-                <span style="font-size:10px;color:var(--muted)">auto-runs when files appear</span>
+              <div class="step-desc">Drop CZUR PDF into incoming/${itemId}/. Processor runs automatically, replaces pages, runs OCR, generates JPG and PNG.</div>
+              <div class="cmd-box">
+                <span class="cmd-text">python3 ~/atte-processor/atte_processor.py</span>
+                <button class="copy-btn" onclick="copyCmd(this, 'python3 ~/atte-processor/atte_processor.py')">Copy</button>
               </div>
-              ${stepProcess ? `<div style="margin-top:5px;font-size:11px;color:var(--done-text)">✓ Final PDF ready</div>` : ''}
+              <div style="margin-top:4px;font-size:10px;color:var(--muted)">
+                Incoming: ~/atte-workspace/incoming/${itemId}/${itemId}_czur.pdf
+              </div>
             </div>
           </div>
 
-          <!-- Step 5: Review -->
-          <div class="step ${stepClass(stepDerivs, nextStep===(willScan?5:3))}">
-            <div class="step-icon">${stepDerivs ? '✓' : willScan?'5':'3'}</div>
+          <div class="step ${sc(allVerified, nextStep===6)}">
+            <div class="step-icon">${allVerified ? '✓' : hasScans ? '6' : '6'}</div>
             <div class="step-body">
-              <div class="step-title">Review output</div>
-              <div class="step-desc">Check PDF quality and derivatives in Nextcloud. Enter item in Grist. Complete PD verification if needed.</div>
-              <div class="step-actions">
-                ${stepProcess ? `<button class="btn btn-teal" onclick="openPdf()" ${!bridgeOk?'disabled':''}>Open PDF</button>` : ''}
-                <span style="font-size:10px;color:var(--muted)">${s ? s.derivatives_count + ' derivative(s) generated' : ''}</span>
+              <div class="step-title">PD verification</div>
+              <div class="step-desc">Verify public domain status for each scan. Update pd_status in the Scans table.</div>
+              <div style="margin-top:4px;font-size:11px">
+                ${hasScans
+                  ? `${verifiedScans} of ${itemScans.length} scan(s) verified`
+                  : 'No scans registered yet'}
               </div>
             </div>
           </div>
+
+          <div class="step ${sc(anyListed, false)}">
+            <div class="step-icon">${anyListed ? '✓' : '7'}</div>
+            <div class="step-body">
+              <div class="step-title">List for sale</div>
+              <div class="step-desc">Create listing on eBay, Etsy, or Shopify. Update listing fields in Grist.</div>
+            </div>
+          </div>
+          ` : `
+          <div class="step ${sc(anyListed, nextStep===2)}">
+            <div class="step-icon">${anyListed ? '✓' : '2'}</div>
+            <div class="step-body">
+              <div class="step-title">List for sale</div>
+              <div class="step-desc">Create listing on eBay, Etsy, or Shopify. Update listing fields in Grist.</div>
+            </div>
+          </div>
+          `}
 
         </div>
+      </div>
+    </div>
+
+    <!-- SCANS TAB -->
+    <div class="tab-content ${activeTab==='scans'?'active':''}" id="tab-scans">
+      <div class="section">
+        ${itemScans.length > 0 ? `
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+            ${verifiedScans} of ${itemScans.length} scan(s) PD verified
+          </div>
+          <div class="scan-list">
+            ${itemScans.map(s => `
+              <div class="scan-row">
+                <div class="scan-id">${s.scan_id || '—'}</div>
+                <div style="flex:1;color:var(--muted)">${s.page_side || '—'}</div>
+                <span class="scan-pd ${
+                  s.pd_status === 'Verified PD' ? 'pd-ok' :
+                  s.pd_status === 'Not PD - do not list' ? 'pd-warn' : 'pd-na'
+                }">${s.pd_status || 'Needs research'}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : `<div style="color:var(--muted);font-style:italic;font-size:12px;padding:12px 0">No scans registered for this item yet.</div>`}
       </div>
     </div>
 
     <!-- STATUS TAB -->
     <div class="tab-content ${activeTab==='status'?'active':''}" id="tab-status">
       <div class="section">
-        ${s ? `
         <div class="status-grid">
-          <div class="status-item ${s.czur_pdf_ready?'ok':'warn'}">
-            <div class="status-label">CZUR PDF</div>
-            <div class="status-val">${s.czur_pdf_ready ? '✓ Ready' : '✗ Missing'}</div>
+          <div class="status-item ok">
+            <div class="status-label">In Grist</div>
+            <div class="status-val">✓ Entered</div>
           </div>
-          <div class="status-item ${s.tiffs_in_workspace>0?'ok':''}">
-            <div class="status-label">Flatbed TIFFs (workspace)</div>
-            <div class="status-val">${s.tiffs_in_workspace} file(s)</div>
+          <div class="status-item ${willScan ? '' : 'na'}">
+            <div class="status-label">Will be scanned</div>
+            <div class="status-val">${willScan ? 'Yes' : 'No'}</div>
           </div>
-          <div class="status-item ${s.pagemap_exists?'ok':''}">
-            <div class="status-label">Page map</div>
-            <div class="status-val">${s.pagemap_exists ? '✓ Set' : willScan ? '— Not set' : 'N/A'}</div>
+          <div class="status-item ${hasScans ? 'ok' : ''}">
+            <div class="status-label">Scans registered</div>
+            <div class="status-val">${itemScans.length} scan(s)</div>
           </div>
-          <div class="status-item ${s.masters_count>0?'ok':''}">
-            <div class="status-label">Masters (Nextcloud)</div>
-            <div class="status-val">${s.masters_count} TIFF(s)</div>
+          <div class="status-item ${allVerified ? 'ok' : hasScans ? '' : 'na'}">
+            <div class="status-label">PD verified</div>
+            <div class="status-val">${hasScans ? `${verifiedScans} / ${itemScans.length}` : 'N/A'}</div>
           </div>
-          <div class="status-item ${s.derivatives_count>0?'ok':''}">
-            <div class="status-label">Derivatives</div>
-            <div class="status-val">${s.derivatives_count} JPG(s)</div>
+          <div class="status-item ${anyListed ? 'ok' : ''}">
+            <div class="status-label">Listed</div>
+            <div class="status-val">${item.status || 'Not listed'}</div>
           </div>
-          <div class="status-item ${s.final_pdf_ready?'ok':'warn'}">
-            <div class="status-label">Final PDF</div>
-            <div class="status-val">${s.final_pdf_ready ? '✓ Ready' : '✗ Not yet'}</div>
+          <div class="status-item">
+            <div class="status-label">Cost basis</div>
+            <div class="status-val">$${item.cost_basis_usd || '0.00'}</div>
           </div>
         </div>
-        ${s.master_names.length > 0 ? `
-          <div style="margin-top:10px;font-size:11px;color:var(--muted)">
-            <strong>Masters:</strong><br>
-            ${s.master_names.join('<br>')}
-          </div>` : ''}
-        ` : `<div class="empty-state">Bridge offline — start atte_bridge.py to see file status</div>`}
-      </div>
-    </div>
 
-    <!-- LOG TAB -->
-    <div class="tab-content ${activeTab==='log'?'active':''}" id="tab-log">
-      <div class="section">
-        ${proc && proc.recent_log && proc.recent_log.length > 0 ? `
-          <div class="log-box">
-            ${proc.recent_log.map(l => {
-              const cls = l.includes('DONE') || l.includes('✓') || l.includes('complete') ? 'ok' :
-                          l.includes('Error') || l.includes('failed') || l.includes('✗') ? 'err' : 'info';
-              return `<div class="log-line ${cls}">${l}</div>`;
-            }).join('')}
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Quick commands</div>
+          <div class="cmd-box" style="margin-bottom:4px">
+            <span class="cmd-text">~/atte-scanner/scan.sh</span>
+            <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/scan.sh')">Copy</button>
           </div>
-        ` : `<div style="color:var(--muted);font-style:italic;font-size:12px">No recent log entries — start the processor to see activity</div>`}
+          <div class="cmd-box" style="margin-bottom:4px">
+            <span class="cmd-text">~/atte-scanner/czur_combine.sh</span>
+            <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/czur_combine.sh')">Copy</button>
+          </div>
+          <div class="cmd-box" style="margin-bottom:4px">
+            <span class="cmd-text">~/atte-scanner/pagemap_helper.sh</span>
+            <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/pagemap_helper.sh')">Copy</button>
+          </div>
+          <div class="cmd-box">
+            <span class="cmd-text">python3 ~/atte-processor/atte_processor.py</span>
+            <button class="copy-btn" onclick="copyCmd(this, 'python3 ~/atte-processor/atte_processor.py')">Copy</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
-}
-
-// ── ACTIONS ───────────────────────────────────────────────────────────────────
-async function runAction(action) {
-  if (!bridgeOk) {
-    alert('Bridge server is offline.\nRun: python3 ~/atte-processor/atte_bridge.py');
-    return;
-  }
-  try {
-    const r = await fetch(`${BRIDGE}/run/${action}`, { method: 'POST' });
-    const data = await r.json();
-    console.log(action, data);
-    setTimeout(refresh, 3000);
-  } catch(e) {
-    console.error(e);
-  }
-}
-
-async function openPdf() {
-  if (!currentItem) return;
-  try {
-    await fetch(`${BRIDGE}/run/open-pdf`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({item_id: currentItem.item_id})
-    });
-  } catch(e) { console.error(e); }
 }
 
 function switchTab(tab) {
@@ -473,9 +412,13 @@ function switchTab(tab) {
   render();
 }
 
-// Initial bridge check
-checkBridge();
-setInterval(checkBridge, 15000);
+function copyCmd(btn, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
 </script>
 </body>
 </html>
