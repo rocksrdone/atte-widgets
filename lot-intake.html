@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATTE — Lot Intake</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+:root{
+  --ink:#1A1614; --paper:#F7F3EE; --warm:#E8DFD4; --rule:#D4C9BC; --muted:#7A6C61;
+  --accent:#8B3A2A; --accent-light:#F2E8E5;
+  --teal:#3A8B7A; --teal-light:#E5F2EF;
+  --gold:#B07D2A; --gold-light:#F5EDD8;
+  --done-bg:#EAF3DE; --done-border:#639922; --done-text:#27500A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;
+  font-size:14px;line-height:1.5;overflow-x:hidden}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+.wrap{max-width:1200px;margin:0 auto;padding:12px 16px 44px}
+
+.slabel{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rule{height:1px;background:var(--rule);margin:12px 0}
+
+.register{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:12px 14px;
+  position:sticky;top:0;z-index:20;box-shadow:0 2px 10px rgba(26,22,20,.05);
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.register h1{font-family:'Libre Baskerville',serif;font-size:19px;font-weight:700;line-height:1.2}
+.status{margin-left:auto;font-size:12px;font-weight:600;padding:3px 11px;border-radius:11px;
+  background:var(--warm);border:1px solid var(--rule);color:var(--muted)}
+.status.ok{background:var(--done-bg);border-color:var(--done-border);color:var(--done-text)}
+.status.err{background:var(--accent-light);border-color:#D4A49A;color:var(--accent)}
+.status.busy{background:var(--teal-light);border-color:#9ACFC7;color:var(--teal)}
+
+.ctx{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 14px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.f input,.f select,.f textarea{background:#fff;border:1.5px solid var(--rule);border-radius:5px;
+  padding:7px 9px;width:100%}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-light)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.f textarea{resize:vertical;min-height:54px;line-height:1.55}
+.f .lot-name{font-family:'Libre Baskerville',serif;font-size:17px;padding:9px 10px}
+.f.disabled{opacity:.45}
+.f.disabled input,.f.disabled select,.f.disabled textarea{background:var(--warm);cursor:not-allowed}
+
+.cols{display:grid;grid-template-columns:1fr 330px;gap:16px;margin-top:16px;align-items:start}
+@media (max-width:880px){.cols{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:14px 16px 16px}
+.panel + .panel{margin-top:16px}
+.panel-head{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;flex-wrap:wrap}
+.panel-head h2{font-family:'Libre Baskerville',serif;font-size:15px;font-weight:700}
+
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;
+  border:1.5px solid var(--accent);background:var(--accent);color:#fff;
+  padding:8px 16px;border-radius:20px;cursor:pointer;transition:filter .15s ease,background .15s ease}
+.btn:hover{filter:brightness(1.1)}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-light);filter:none}
+.btn.quiet{background:#fff;color:var(--muted);border-color:var(--rule)}
+.btn.quiet:hover{background:var(--warm);filter:none}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.btn.small{padding:5px 12px;font-size:12.5px}
+
+/* new-source drawer */
+.drawer{border:1.5px dashed var(--rule);border-radius:6px;padding:12px;margin-top:10px;background:var(--paper)}
+.drawer[hidden]{display:none}
+.drawer-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.drawer-head .slabel{color:var(--teal)}
+
+/* sorting queue */
+.rail{background:#fff;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.rail-head{padding:12px 14px;border-bottom:1px solid var(--rule);background:var(--warm)}
+.rail-head h2{font-family:'Libre Baskerville',serif;font-size:15px;font-weight:700;margin-bottom:2px}
+.rail-sub{font-size:12px;color:var(--muted)}
+.spend{display:flex;gap:14px;padding:10px 14px;border-bottom:1px solid var(--warm);flex-wrap:wrap}
+.spend div{min-width:0}
+.spend .n{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;color:var(--accent);line-height:1.1}
+.spend .l{font-size:11px;color:var(--muted)}
+.queue{list-style:none;max-height:400px;overflow:auto}
+.queue li{padding:10px 14px;border-bottom:1px solid var(--warm)}
+.queue li:last-child{border-bottom:none}
+.q-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.q-name{font-family:'Libre Baskerville',serif;font-size:13.5px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.q-paid{font-family:'DM Mono',monospace;font-size:12.5px;color:var(--muted);flex:none}
+.q-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+.bar{height:6px;background:var(--warm);border-radius:3px;margin-top:6px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--teal);border-radius:3px}
+.bar.full span{background:var(--done-border)}
+.pill{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:9px;letter-spacing:.02em}
+.pill.open{background:var(--gold-light);color:var(--gold);border:1px solid #D4B07A}
+.pill.done{background:var(--done-bg);color:var(--done-text);border:1px solid var(--done-border)}
+.pill.gap{background:var(--accent-light);color:var(--accent);border:1px solid #D4A49A}
+.empty{padding:16px 14px;color:var(--muted);font-size:13px;font-style:italic}
+
+.note{font-size:12.5px;color:var(--muted);margin-top:9px;line-height:1.55}
+.badge{font-family:'DM Mono',monospace;font-size:12px;background:var(--teal-light);color:var(--teal);
+  border:1px solid #9ACFC7;border-radius:3px;padding:1px 7px}
+details{margin-top:16px}
+summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--muted);
+  letter-spacing:.05em;text-transform:uppercase}
+pre.diag{font-family:'DM Mono',monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;
+  background:var(--warm);border:1px solid var(--rule);border-radius:5px;padding:10px;
+  max-height:260px;overflow:auto;margin-top:10px;line-height:1.5}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 14px;margin-top:12px}
+.err-banner{background:var(--accent-light);border:1px solid #D4A49A;border-radius:6px;
+  color:var(--accent);padding:10px 13px;margin-bottom:12px;font-size:13px;line-height:1.55}
+.err-banner strong{display:block;font-weight:600;margin-bottom:2px}
+
+.big-toggle-btn{position:fixed;top:12px;right:12px;z-index:500;padding:6px 13px;border-radius:20px;
+  border:1.5px solid var(--accent);background:#fff;color:var(--accent);font-size:12px;font-weight:600;
+  cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+body.big-mode .big-toggle-btn{background:var(--accent);color:#fff}
+body.big-mode{font-size:17px}
+body.big-mode .register h1,body.big-mode .rail-head h2{font-size:23px}
+body.big-mode .f label,body.big-mode .slabel{font-size:13px}
+body.big-mode .f .lot-name{font-size:22px}
+body.big-mode .btn{font-size:16px;padding:10px 20px}
+body.big-mode .panel-head h2{font-size:18px}
+body.big-mode .q-name{font-size:16px}
+body.big-mode .spend .n{font-size:24px}
+body.big-mode .note{font-size:15px}
+</style>
+</head>
+<body>
+<button class="big-toggle-btn" id="bigToggle">Big view</button>
+
+<div class="wrap">
+  <div id="errBanner" class="err-banner" hidden></div>
+
+  <section class="register">
+    <h1>Lot intake</h1>
+    <span class="slabel">Log the haul before you sort the box</span>
+    <span id="status" class="status">Connecting…</span>
+  </section>
+
+  <div class="cols">
+    <div>
+      <section class="panel">
+        <div class="panel-head"><h2>The haul</h2><span class="badge" id="lotCountBadge">—</span></div>
+
+        <div class="f" style="margin-bottom:12px">
+          <label for="fName">Lot name</label>
+          <input type="text" id="fName" class="lot-name" placeholder="Auto-fills from date and source" autocomplete="off">
+        </div>
+
+        <div class="ctx">
+          <div class="f">
+            <label for="fDate">Date</label>
+            <input type="date" id="fDate">
+          </div>
+          <div class="f" style="grid-column:span 2">
+            <label for="fSource">Source</label>
+            <select id="fSource"><option value="0">— none —</option></select>
+          </div>
+          <div class="f">
+            <label for="fPaid">Total paid (USD)</label>
+            <input type="number" id="fPaid" step="0.01" min="0" placeholder="45.00" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:10px">
+          <button class="btn quiet small" id="btnNewSource">＋ New source</button>
+        </div>
+
+        <div class="drawer" id="sourceDrawer" hidden>
+          <div class="drawer-head">
+            <span class="slabel">New source</span>
+            <span class="note" style="margin:0">Created in Sources and linked to this lot.</span>
+          </div>
+          <div class="ctx">
+            <div class="f">
+              <label for="sName">Name</label>
+              <input type="text" id="sName" placeholder="Forgotton Generations" autocomplete="off">
+            </div>
+            <div class="f">
+              <label for="sCity">City</label>
+              <input type="text" id="sCity" placeholder="Owosso" autocomplete="off">
+            </div>
+            <div class="f">
+              <label for="sType">Type</label>
+              <input type="text" id="sType" placeholder="Estate sale" autocomplete="off">
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn ghost small" id="btnSaveSource">Create source</button>
+            <button class="btn quiet small" id="btnCancelSource">Cancel</button>
+          </div>
+        </div>
+
+        <div class="rule"></div>
+
+        <div class="ctx">
+          <div class="f">
+            <label for="fBox">Where the box is</label>
+            <input type="text" id="fBox" placeholder="Garage shelf 2" autocomplete="off">
+          </div>
+          <div class="f">
+            <label for="fEst">Rough item count</label>
+            <input type="number" id="fEst" min="0" step="1" placeholder="60" autocomplete="off">
+          </div>
+          <div class="f" style="grid-column:span 2">
+            <label for="fNotes">Notes</label>
+            <textarea id="fNotes" placeholder="Two boxes of postcards, one Apple IIe with cables, water damage on the bottom layer"></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnCreate">Create lot</button>
+          <button class="btn ghost" id="btnCreateAnother">Create &amp; log another</button>
+          <button class="btn quiet" id="btnClear">Clear</button>
+        </div>
+        <p class="note" id="createNote">The rough count is what drives the sorting progress bars on the right. A guess is fine.</p>
+      </section>
+
+      <details>
+        <summary>Diagnostics &amp; field mapping</summary>
+        <p class="note">These were matched automatically from your column names. If any are wrong or blank, set them once — the choice is saved with the widget.</p>
+        <div class="map-grid" id="mapGrid"></div>
+        <div class="actions">
+          <button class="btn quiet small" id="btnReload">Reload from Grist</button>
+        </div>
+        <pre class="diag" id="diag">Waiting for Grist…</pre>
+      </details>
+    </div>
+
+    <aside>
+      <div class="rail">
+        <div class="rail-head">
+          <h2>Boxes to sort</h2>
+          <div class="rail-sub" id="railSub">Lots with items still to file</div>
+        </div>
+        <div class="spend">
+          <div><div class="n" id="spendMonth">$0</div><div class="l">spent this month</div></div>
+          <div><div class="n" id="spendOpen">$0</div><div class="l">sitting unsorted</div></div>
+        </div>
+        <ul class="queue" id="queue"></ul>
+        <div class="empty" id="queueEmpty">No lots yet. Log the first haul on the left.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Logical fields -> real Grist columns, matched by name
+   ============================================================ */
+const LOT_FIELDS = [
+  {key:"name",   label:"Lot name",        pats:[/^lot_?(name|label|title)$/i,/^(name|label|title)$/i,/name|label|title/i], kind:"text"},
+  {key:"date",   label:"Date",            pats:[/^(lot_?)?(acquired|purchase|buy)_?date$/i,/date/i], kind:"date"},
+  {key:"source", label:"Source",          pats:[/source|seller|vendor|venue/i], kind:"ref"},
+  {key:"paid",   label:"Total paid",      pats:[/^(total_?)?(paid|cost|price)/i,/paid|cost|price|spend|total/i], kind:"num"},
+  {key:"box",    label:"Storage location",pats:[/location|storage|box|where|bin|shelf/i], kind:"text"},
+  {key:"est",    label:"Rough item count",pats:[/est|expected|approx|item_?count|qty|quantity|pieces/i], kind:"num"},
+  {key:"notes",  label:"Notes",           pats:[/note|desc|comment/i], kind:"text"},
+  {key:"status", label:"Status",          pats:[/status|state|stage/i], kind:"text"}
+];
+const SOURCE_FIELDS = [
+  {key:"name", label:"Source name", pats:[/^(source_?)?(name|label|title)$/i,/name|label|title/i], kind:"text"},
+  {key:"city", label:"City",        pats:[/city|town|place|location/i], kind:"text"},
+  {key:"type", label:"Type",        pats:[/type|kind|category|channel/i], kind:"text"}
+];
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const diagLines = [];
+function log(m){
+  diagLines.push(new Date().toLocaleTimeString() + "  " + m);
+  if (diagLines.length > 200) diagLines.shift();
+  $("diag").textContent = diagLines.join("\n");
+}
+function setStatus(t, k){ const e=$("status"); e.textContent=t; e.className="status"+(k?" "+k:""); }
+function showError(m){ const b=$("errBanner"); b.hidden=false; b.innerHTML="<strong>Something went wrong</strong>"+m; log("ERROR: "+m); }
+function clearError(){ $("errBanner").hidden = true; }
+
+function toRows(tbl){
+  if (!tbl) return [];
+  const keys = Object.keys(tbl);
+  if (!keys.length) return [];
+  const n = (tbl.id || tbl[keys[0]] || []).length;
+  const out = [];
+  for (let i=0;i<n;i++){ const r={}; for (const k of keys) r[k]=tbl[k][i]; out.push(r); }
+  return out;
+}
+function refId(v){
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return v;
+  if (Array.isArray(v)) return (v[0]==="R"||v[0]==="r") ? Number(v[2])||0 : 0;
+  if (typeof v === "object" && "id" in v) return Number(v.id)||0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function ymdToEpoch(ymd){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||"");
+  return m ? Date.UTC(+m[1], +m[2]-1, +m[3])/1000 : null;
+}
+function todayYmd(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function money(n){ return "$" + (Math.round((n||0)*100)/100).toFixed(2); }
+function moneyShort(n){
+  n = n||0;
+  return n >= 1000 ? "$" + (n/1000).toFixed(1) + "k" : "$" + Math.round(n);
+}
+function sampleOf(rows, col){
+  for (const r of rows){ const v=r[col]; if (v!==null && v!==undefined && v!=="") return v; }
+  return null;
+}
+
+/* Pick the best column for a logical field, honouring value shape */
+function detect(rows, field, taken){
+  if (!rows.length) return "";
+  const cols = Object.keys(rows[0]).filter(c => c!=="id" && c!=="manualSort" && !taken.has(c));
+  const shapeOk = c => {
+    const s = sampleOf(rows, c);
+    if (s === null) return true;                       // empty column, can't tell
+    if (field.kind === "num")  return typeof s === "number";
+    if (field.kind === "ref")  return typeof s === "number" || Array.isArray(s);
+    if (field.kind === "date") return typeof s === "number" || typeof s === "string";
+    return true;
+  };
+  for (const pat of field.pats){
+    const hit = cols.find(c => pat.test(c) && shapeOk(c));
+    if (hit) return hit;
+  }
+  return "";
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  ready:false,
+  lots:[], sources:[], items:[],
+  lotCols:[], sourceCols:[],
+  map:{lots:{}, sources:{}},
+  sourceLabel:"",
+  dateIsText:false
+};
+
+/* ============================================================
+   Load
+   ============================================================ */
+async function loadAll(){
+  setStatus("Loading…","busy");
+  clearError();
+  try {
+    const [lots, sources, items] = await Promise.all([
+      grist.docApi.fetchTable("Lots"),
+      grist.docApi.fetchTable("Sources"),
+      grist.docApi.fetchTable("Items").catch(()=>null)
+    ]);
+    state.lots = toRows(lots);
+    state.sources = toRows(sources);
+    state.items = toRows(items);
+    state.lotCols = state.lots.length ? Object.keys(state.lots[0]) : [];
+    state.sourceCols = state.sources.length ? Object.keys(state.sources[0]) : [];
+    log("Lots "+state.lots.length+" rows, cols: "+state.lotCols.join(", "));
+    log("Sources "+state.sources.length+" rows, cols: "+state.sourceCols.join(", "));
+    log("Items "+state.items.length+" rows");
+  } catch(e){
+    setStatus("Could not read tables","err");
+    showError("Grist would not return the Lots or Sources table: "+e.message+
+      " — set this widget's Access to <b>Full document access</b>. Without it Grist returns nothing and reports no error.");
+    return;
+  }
+
+  autoMap();
+  buildMapUi();
+  fillSources();
+  renderQueue();
+  suggestName();
+  setStatus("Ready","ok");
+  state.ready = true;
+}
+
+function autoMap(){
+  const takenL = new Set(Object.values(state.map.lots).filter(Boolean));
+  LOT_FIELDS.forEach(f => {
+    if (state.map.lots[f.key]) return;
+    const c = detect(state.lots, f, takenL);
+    if (c){ state.map.lots[f.key]=c; takenL.add(c); }
+  });
+  const takenS = new Set(Object.values(state.map.sources).filter(Boolean));
+  SOURCE_FIELDS.forEach(f => {
+    if (state.map.sources[f.key]) return;
+    const c = detect(state.sources, f, takenS);
+    if (c){ state.map.sources[f.key]=c; takenS.add(c); }
+  });
+
+  state.sourceLabel = state.map.sources.name ||
+    (state.sourceCols.find(c => /name|label|title/i.test(c)) || state.sourceCols[1] || "id");
+
+  const dcol = state.map.lots.date;
+  const dsample = dcol ? sampleOf(state.lots, dcol) : null;
+  state.dateIsText = typeof dsample === "string";
+
+  log("Lot mapping: "+JSON.stringify(state.map.lots));
+  log("Source mapping: "+JSON.stringify(state.map.sources));
+  log("Date column stores "+(state.dateIsText?"text":"epoch numbers"));
+
+  const missing = ["name","paid"].filter(k => !state.map.lots[k]);
+  if (missing.length){
+    showError("No column in Lots matched: <b>"+missing.join(", ")+
+      "</b>. Open Diagnostics below and pick the right ones, or add the columns in Grist first.");
+  }
+}
+
+function buildMapUi(){
+  const g = $("mapGrid");
+  g.innerHTML = "";
+  const add = (scope, fields, cols) => fields.forEach(f => {
+    const d = document.createElement("div");
+    d.className = "f";
+    const lab = document.createElement("label");
+    lab.textContent = (scope==="lots"?"Lots · ":"Sources · ") + f.label;
+    const sel = document.createElement("select");
+    sel.innerHTML = '<option value="">— not stored —</option>';
+    cols.forEach(c => {
+      if (c==="id"||c==="manualSort") return;
+      const o=document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o);
+    });
+    sel.value = state.map[scope][f.key] || "";
+    sel.addEventListener("change", () => {
+      state.map[scope][f.key] = sel.value;
+      if (scope==="sources" && f.key==="name"){ state.sourceLabel = sel.value || state.sourceLabel; fillSources(); }
+      if (scope==="lots") renderQueue();
+      saveOptions();
+    });
+    d.append(lab, sel);
+    g.appendChild(d);
+  });
+  add("lots", LOT_FIELDS, state.lotCols);
+  add("sources", SOURCE_FIELDS, state.sourceCols);
+}
+
+function fillSources(){
+  const sel = $("fSource");
+  const prev = sel.value;
+  sel.innerHTML = '<option value="0">— none —</option>';
+  state.sources.forEach(r => {
+    const o = document.createElement("option");
+    o.value = String(r.id);
+    const raw = r[state.sourceLabel];
+    o.textContent = (raw===null||raw===undefined||raw==="") ? ("row "+r.id) : String(raw);
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value===prev)) sel.value = prev;
+}
+
+async function saveOptions(){
+  try { await grist.widgetApi.setOptions({map: state.map, lastBox: $("fBox").value}); }
+  catch(e){ log("setOptions failed: "+e.message); }
+}
+
+/* ============================================================
+   Sorting queue
+   ============================================================ */
+function lotStats(lot){
+  const filed = state.items.filter(r => refId(r.lot_id) === lot.id);
+  const est = Number(lot[state.map.lots.est]) || 0;
+  const paid = Number(lot[state.map.lots.paid]) || 0;
+  const allocated = filed.reduce((a,r) => a + (Number(r.cost_basis_usd)||0), 0);
+  return {filed:filed.length, est:est, paid:paid, allocated:allocated};
+}
+
+function renderQueue(){
+  const ul = $("queue");
+  ul.innerHTML = "";
+  const nameCol = state.map.lots.name;
+  const dateCol = state.map.lots.date;
+
+  const rows = state.lots.map(l => ({lot:l, st:lotStats(l)}));
+  rows.sort((a,b) => b.lot.id - a.lot.id);
+
+  let openSpend = 0, monthSpend = 0;
+  const now = new Date(), mStart = Date.UTC(now.getFullYear(), now.getMonth(), 1)/1000;
+
+  rows.forEach(({lot, st}) => {
+    const dv = dateCol ? lot[dateCol] : null;
+    const epoch = typeof dv === "number" ? dv : ymdToEpoch(dv);
+    if (epoch && epoch >= mStart) monthSpend += st.paid;
+    const sorted = st.est ? st.filed >= st.est : st.filed > 0;
+    if (!sorted) openSpend += st.paid;
+  });
+
+  rows.slice(0, 25).forEach(({lot, st}) => {
+    const li = document.createElement("li");
+    const pct = st.est ? Math.min(100, Math.round(st.filed/st.est*100)) : (st.filed?100:0);
+    const sorted = st.est ? st.filed >= st.est : st.filed > 0;
+    const gap = st.paid > 0 && Math.abs(st.paid - st.allocated) > 0.02;
+
+    const top = document.createElement("div");
+    top.className = "q-top";
+    const nm = document.createElement("span");
+    nm.className = "q-name";
+    const raw = nameCol ? lot[nameCol] : null;
+    nm.textContent = (raw===null||raw===undefined||raw==="") ? ("Lot "+lot.id) : String(raw);
+    const pd = document.createElement("span");
+    pd.className = "q-paid";
+    pd.textContent = st.paid ? money(st.paid) : "";
+    top.append(nm, pd);
+
+    const meta = document.createElement("div");
+    meta.className = "q-meta";
+    const pill = document.createElement("span");
+    pill.className = "pill " + (sorted ? "done" : "open");
+    pill.textContent = sorted ? "sorted" : "to sort";
+    meta.appendChild(pill);
+    meta.append(" " + st.filed + (st.est ? " of ~" + st.est : "") + " items filed");
+    if (gap){
+      const g = document.createElement("span");
+      g.className = "pill gap";
+      g.style.marginLeft = "6px";
+      g.textContent = money(st.paid - st.allocated) + " unallocated";
+      meta.appendChild(g);
+    }
+
+    const bar = document.createElement("div");
+    bar.className = "bar" + (pct>=100 ? " full" : "");
+    const fill = document.createElement("span");
+    fill.style.width = pct + "%";
+    bar.appendChild(fill);
+
+    li.append(top, meta, bar);
+    ul.appendChild(li);
+  });
+
+  $("queueEmpty").hidden = rows.length > 0;
+  $("spendMonth").textContent = moneyShort(monthSpend);
+  $("spendOpen").textContent = moneyShort(openSpend);
+  $("railSub").textContent = rows.length + " lots · newest first";
+  $("lotCountBadge").textContent = state.lots.length + " lots";
+}
+
+/* ============================================================
+   Name suggestion
+   ============================================================ */
+function suggestName(){
+  const nameEl = $("fName");
+  if (nameEl.value && nameEl.dataset.touched === "1") return;
+  const d = $("fDate").value || todayYmd();
+  const sel = $("fSource");
+  const src = sel.value !== "0" ? sel.options[sel.selectedIndex].textContent : "";
+  nameEl.value = src ? (d + " — " + src) : d;
+}
+
+/* ============================================================
+   Create
+   ============================================================ */
+async function createSource(){
+  const name = $("sName").value.trim();
+  if (!name){ setStatus("Name the source first","err"); return; }
+  if (!state.map.sources.name){
+    showError("No name column is mapped for Sources — set it under Diagnostics.");
+    return;
+  }
+  const fields = {};
+  fields[state.map.sources.name] = name;
+  if (state.map.sources.city && $("sCity").value.trim()) fields[state.map.sources.city] = $("sCity").value.trim();
+  if (state.map.sources.type && $("sType").value.trim()) fields[state.map.sources.type] = $("sType").value.trim();
+
+  setStatus("Creating source…","busy");
+  try {
+    const res = await grist.docApi.applyUserActions([["AddRecord","Sources",null,fields]]);
+    const newId = res.retValues[0];
+    state.sources = toRows(await grist.docApi.fetchTable("Sources"));
+    fillSources();
+    $("fSource").value = String(newId);
+    $("sName").value = $("sCity").value = $("sType").value = "";
+    $("sourceDrawer").hidden = true;
+    suggestName();
+    setStatus("Source added","ok");
+  } catch(e){
+    setStatus("Source not created","err");
+    showError("Adding the source failed: "+e.message);
+  }
+}
+
+async function createLot(another){
+  if (!state.ready) return;
+  clearError();
+  const m = state.map.lots;
+  const name = $("fName").value.trim();
+  if (!name){ setStatus("Give the lot a name","err"); return; }
+
+  const fields = {};
+  if (m.name) fields[m.name] = name;
+  if (m.date && $("fDate").value){
+    fields[m.date] = state.dateIsText ? $("fDate").value : ymdToEpoch($("fDate").value);
+  }
+  if (m.source) fields[m.source] = Number($("fSource").value) || 0;
+  if (m.paid){ const p = parseFloat($("fPaid").value); fields[m.paid] = Number.isFinite(p) ? p : 0; }
+  if (m.box && $("fBox").value.trim()) fields[m.box] = $("fBox").value.trim();
+  if (m.est){ const e = parseInt($("fEst").value,10); if (Number.isFinite(e)) fields[m.est] = e; }
+  if (m.notes && $("fNotes").value.trim()) fields[m.notes] = $("fNotes").value.trim();
+
+  setStatus("Creating lot…","busy");
+  try {
+    await grist.docApi.applyUserActions([["AddRecord","Lots",null,fields]]);
+  } catch(e){
+    setStatus("Lot not created","err");
+    showError("Grist rejected the new lot: "+e.message+
+      " — if this mentions a column, check the field mapping under Diagnostics.");
+    return;
+  }
+
+  state.lots = toRows(await grist.docApi.fetchTable("Lots"));
+  renderQueue();
+  setStatus("Created “"+name+"”","ok");
+  $("createNote").innerHTML = "Lot created. It's in the intake widget's Lot list now — reload that page if it's already open.";
+  saveOptions();
+
+  clearForm(!another);
+  if (another) $("fPaid").focus();
+}
+
+function clearForm(keepBox){
+  $("fName").value = "";
+  $("fName").dataset.touched = "0";
+  $("fPaid").value = "";
+  $("fEst").value = "";
+  $("fNotes").value = "";
+  if (!keepBox) $("fBox").value = "";
+  suggestName();
+}
+
+/* ============================================================
+   Wiring
+   ============================================================ */
+function wire(){
+  $("btnCreate").addEventListener("click", () => createLot(false));
+  $("btnCreateAnother").addEventListener("click", () => createLot(true));
+  $("btnClear").addEventListener("click", () => { clearForm(false); $("fName").focus(); });
+  $("btnReload").addEventListener("click", loadAll);
+  $("btnNewSource").addEventListener("click", () => {
+    const d = $("sourceDrawer");
+    d.hidden = !d.hidden;
+    if (!d.hidden) $("sName").focus();
+  });
+  $("btnSaveSource").addEventListener("click", createSource);
+  $("btnCancelSource").addEventListener("click", () => { $("sourceDrawer").hidden = true; });
+
+  $("fName").addEventListener("input", () => { $("fName").dataset.touched = "1"; });
+  $("fDate").addEventListener("change", suggestName);
+  $("fSource").addEventListener("change", suggestName);
+  $("fBox").addEventListener("change", saveOptions);
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      createLot(e.shiftKey);
+    }
+  });
+
+  const b = $("bigToggle");
+  b.addEventListener("click", () => {
+    const on = document.body.classList.toggle("big-mode");
+    b.textContent = on ? "Normal view" : "Big view";
+  });
+}
+
+async function boot(){
+  wire();
+  $("fDate").value = todayYmd();
+
+  if (typeof grist === "undefined"){
+    setStatus("Not inside Grist","err");
+    showError("This page only works as a Grist custom widget.");
+    return;
+  }
+  grist.ready({requiredAccess:"full"});
+
+  try {
+    const opts = (await grist.widgetApi.getOptions()) || {};
+    if (opts.map){
+      state.map.lots = Object.assign({}, opts.map.lots||{});
+      state.map.sources = Object.assign({}, opts.map.sources||{});
+    }
+    if (opts.lastBox) $("fBox").value = opts.lastBox;
+  } catch(e){ log("Options load failed: "+e.message); }
+
+  await loadAll();
+  $("fName").focus();
+  log("Widget ready.");
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
