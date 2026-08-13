@@ -101,6 +101,13 @@ body {
 }
 .copy-btn:hover { background: var(--accent); color: white; }
 .copy-btn.copied { background: var(--done-border); color: white; }
+.run-btn {
+  font-size: 11px; padding: 5px 12px; border-radius: 5px; cursor: pointer;
+  border: none; background: var(--accent); color: white;
+  font-family: 'Inter', sans-serif; margin-top: 5px;
+  transition: opacity .15s;
+}
+.run-btn:hover { opacity: .85; }
 .step-note { font-size: 11px; color: var(--done-text); margin-top: 4px; font-style: italic; }
 /* Status */
 .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -148,6 +155,48 @@ body {
 let currentItem = null;
 let allScans = [];
 let activeTab = 'workflow';
+
+// Nextcloud WebDAV config for trigger files
+const NC_URL = 'https://nx99546.your-storageshare.de/remote.php/dav/files/info@squirrelystash.com/At%20the%20Tail%20End/.triggers';
+const NC_AUTH = 'Basic ' + btoa('info@squirrelystash.com:LMHt2-BJoZk-XETAB-ajPKP-QqE7p');
+
+async function triggerAction(action) {
+  try {
+    // Ensure triggers folder exists
+    await fetch(`${NC_URL}`, {
+      method: 'MKCOL',
+      headers: { 'Authorization': NC_AUTH }
+    }).catch(() => {}); // ignore if already exists
+
+    // Write trigger file
+    const r = await fetch(`${NC_URL}/${action}.trigger`, {
+      method: 'PUT',
+      headers: { 'Authorization': NC_AUTH, 'Content-Type': 'text/plain' },
+      body: action
+    });
+    if (r.ok || r.status === 201 || r.status === 204) {
+      showToast(`▶ ${action} triggered`);
+    } else {
+      showToast(`Error: ${r.status}`);
+    }
+  } catch(e) {
+    showToast('Error — is Nextcloud reachable?');
+    console.error(e);
+  }
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;padding:6px 14px;border-radius:5px;font-size:12px;opacity:0;transition:opacity .2s;z-index:999;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(() => t.style.opacity = '0', 2500);
+}
 
 grist.ready({ requiredAccess: 'full', columns: [] });
 
@@ -253,6 +302,7 @@ function render() {
                 <span class="cmd-text">~/atte-scanner/czur_combine.sh</span>
                 <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/czur_combine.sh')">Copy</button>
               </div>
+              <button class="run-btn" onclick="triggerAction('czur-combine')">▶ Run czur_combine</button>
             </div>
           </div>
 
@@ -265,6 +315,7 @@ function render() {
                 <span class="cmd-text">~/atte-scanner/scan.sh → pick profile → pick ${itemId}</span>
                 <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/scan.sh')">Copy</button>
               </div>
+              <button class="run-btn" onclick="triggerAction('scan')">▶ Run scan.sh</button>
               ${hasScans ? `<div class="step-note">✓ ${itemScans.length} scan(s) registered in Grist</div>` : ''}
             </div>
           </div>
@@ -278,6 +329,7 @@ function render() {
                 <span class="cmd-text">~/atte-scanner/pagemap_helper.sh</span>
                 <button class="copy-btn" onclick="copyCmd(this, '~/atte-scanner/pagemap_helper.sh')">Copy</button>
               </div>
+              <button class="run-btn" onclick="triggerAction('pagemap')">▶ Run pagemap helper</button>
             </div>
           </div>
 
@@ -290,6 +342,7 @@ function render() {
                 <span class="cmd-text">python3 ~/atte-processor/atte_processor.py</span>
                 <button class="copy-btn" onclick="copyCmd(this, 'python3 ~/atte-processor/atte_processor.py')">Copy</button>
               </div>
+              <button class="run-btn" onclick="triggerAction('processor')">▶ Start processor</button>
               <div style="margin-top:4px;font-size:10px;color:var(--muted)">
                 Incoming: ~/atte-workspace/incoming/${itemId}/${itemId}_czur.pdf
               </div>
