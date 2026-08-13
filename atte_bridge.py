@@ -181,13 +181,20 @@ def open_pdf():
         return jsonify({'status': 'error', 'message': 'PDF not found'}), 404
 
 if __name__ == '__main__':
+    import os
+    cert = os.path.join(os.path.dirname(__file__), 'bridge-cert.pem')
+    key  = os.path.join(os.path.dirname(__file__), 'bridge-key.pem')
     print("")
     print("╔══════════════════════════════════════════╗")
     print("║     ATTE Bridge Server                   ║")
-    print("║     Running on localhost:7742            ║")
+    print("║     Running on https://localhost:7742    ║")
     print("╚══════════════════════════════════════════╝")
+    print("")
+    print("First time? Visit https://localhost:7742/health")
+    print("in your browser and click through the SSL warning.")
     print("")
     print("Keep this running while using the Grist widget.")
     print("Press Ctrl+C to stop.")
     print("")
-    app.run(host='127.0.0.1', port=7742, debug=False)
+    ssl_ctx = (cert, key) if os.path.exists(cert) else None
+    app.run(host='127.0.0.1', port=7742, debug=False, ssl_context=ssl_ctx)
