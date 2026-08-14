@@ -157,6 +157,7 @@ body.big-mode .note{font-size:15px}
           <div class="f" style="grid-column:span 2">
             <label for="fSource">Source</label>
             <select id="fSource"><option value="0">— none —</option></select>
+            <div class="note" id="srcInfo" style="margin-top:2px"></div>
           </div>
           <div class="f">
             <label for="fPaid">Total paid (USD)</label>
@@ -178,13 +179,29 @@ body.big-mode .note{font-size:15px}
               <label for="sName">Name</label>
               <input type="text" id="sName" placeholder="Forgotton Generations" autocomplete="off">
             </div>
+            <div class="f" style="grid-column:span 2">
+              <label for="sStreet">Street</label>
+              <input type="text" id="sStreet" placeholder="212 N Washington St" autocomplete="off">
+            </div>
             <div class="f">
               <label for="sCity">City</label>
-              <input type="text" id="sCity" placeholder="Owosso" autocomplete="off">
+              <input type="text" id="sCity" list="cityList" placeholder="Owosso" autocomplete="off">
+              <datalist id="cityList"></datalist>
+            </div>
+            <div class="f">
+              <label for="sState">State</label>
+              <input type="text" id="sState" list="stateList" placeholder="MI" maxlength="2" autocomplete="off">
+              <datalist id="stateList"></datalist>
+            </div>
+            <div class="f">
+              <label for="sZip">ZIP</label>
+              <input type="text" id="sZip" placeholder="48867" inputmode="numeric" autocomplete="off">
             </div>
             <div class="f">
               <label for="sType">Type</label>
-              <input type="text" id="sType" placeholder="Estate sale" autocomplete="off">
+              <input type="text" id="sType" list="typeList" placeholder="Estate sale" autocomplete="off">
+              <datalist id="typeList"></datalist>
+              <span class="note" style="margin-top:2px" id="typeHint">Pick one or type a new one.</span>
             </div>
           </div>
           <div class="actions">
@@ -264,10 +281,25 @@ const LOT_FIELDS = [
   {key:"status", label:"Status",          pats:[/status|state|stage/i], kind:"text"}
 ];
 const SOURCE_FIELDS = [
-  {key:"name", label:"Source name", pats:[/^(source_?)?(name|label|title)$/i,/name|label|title/i], kind:"text"},
-  {key:"city", label:"City",        pats:[/city|town|place|location/i], kind:"text"},
-  {key:"type", label:"Type",        pats:[/type|kind|category|channel/i], kind:"text"}
+  {key:"name",   label:"Source name", pats:[/^(source_?)?(name|label|title)$/i,/name|label|title/i], kind:"text"},
+  {key:"street", label:"Street",      pats:[/street|address|addr|line1/i], kind:"text"},
+  {key:"city",   label:"City",        pats:[/city|town/i], kind:"text"},
+  {key:"state",  label:"State",       pats:[/^state$/i,/state|province|region/i], kind:"text"},
+  {key:"zip",    label:"ZIP",         pats:[/zip|postal/i], kind:"text"},
+  {key:"type",   label:"Type",        pats:[/type|kind|category|channel/i], kind:"text"}
 ];
+
+/* Offered when a type hasn't been used yet — your own values always rank first */
+const COMMON_TYPES = ["Estate sale","Auction","Thrift store","Bin store","Antique mall",
+  "Vendor booth","Garage sale","Flea market","Online marketplace","Private seller","Storage unit"];
+
+/* Known ATTE columns — used when nothing is saved yet, before falling back to guessing */
+const DEFAULT_MAP = {
+  lots:{name:"lot_name", date:"lot_date", source:"source", paid:"total_cost_usd",
+        box:"storage_location", est:"est_items", notes:"notes"},
+  sources:{name:"name", street:"street_address", city:"city", state:"state",
+           zip:"zip", type:"source_type"}
+};
 
 /* ============================================================
    Helpers
@@ -379,6 +411,8 @@ async function loadAll(){
   autoMap();
   buildMapUi();
   fillSources();
+  fillSuggestions();
+  updateSourceInfo();
   renderQueue();
   suggestName();
   setStatus("Ready","ok");
@@ -386,6 +420,14 @@ async function loadAll(){
 }
 
 function autoMap(){
+  // Prefer the real ATTE column names when they exist, then guess for anything left.
+  ["lots","sources"].forEach(scope => {
+    const cols = scope === "lots" ? state.lotCols : state.sourceCols;
+    Object.entries(DEFAULT_MAP[scope]).forEach(([k,c]) => {
+      if (!state.map[scope][k] && cols.includes(c)) state.map[scope][k] = c;
+    });
+  });
+
   const takenL = new Set(Object.values(state.map.lots).filter(Boolean));
   LOT_FIELDS.forEach(f => {
     if (state.map.lots[f.key]) return;
@@ -435,6 +477,7 @@ function buildMapUi(){
     sel.addEventListener("change", () => {
       state.map[scope][f.key] = sel.value;
       if (scope==="sources" && f.key==="name"){ state.sourceLabel = sel.value || state.sourceLabel; fillSources(); }
+      if (scope==="sources" && (f.key==="type" || f.key==="city")) fillSuggestions();
       if (scope==="lots") renderQueue();
       saveOptions();
     });
@@ -443,6 +486,65 @@ function buildMapUi(){
   });
   add("lots", LOT_FIELDS, state.lotCols);
   add("sources", SOURCE_FIELDS, state.sourceCols);
+}
+
+function fillSuggestions(){
+  const build = (col, listId, seed) => {
+    const seen = new Map();
+    if (col){
+      state.sources.forEach(r => {
+        const v = r[col];
+        if (typeof v === "string" && v.trim()){
+          const t = v.trim();
+          seen.set(t.toLowerCase(), (seen.get(t.toLowerCase())||{v:t,n:0}));
+          seen.get(t.toLowerCase()).v = t;
+          seen.get(t.toLowerCase()).n++;
+        }
+      });
+    }
+    const used = [...seen.values()].sort((a,b) => b.n - a.n || a.v.localeCompare(b.v)).map(x => x.v);
+    const extra = seed.filter(s => !seen.has(s.toLowerCase()));
+    const dl = $(listId);
+    dl.innerHTML = "";
+    used.concat(extra).forEach(v => {
+      const o = document.createElement("option");
+      o.value = v;
+      dl.appendChild(o);
+    });
+    return used.length;
+  };
+
+  const nUsed = build(state.map.sources.type, "typeList", COMMON_TYPES);
+  build(state.map.sources.city, "cityList", []);
+  build(state.map.sources.state, "stateList", ["MI","OH","IN","IL","WI"]);
+  $("typeHint").textContent = nUsed
+    ? nUsed + " types in use — pick one or type a new one."
+    : "Pick a suggestion or type your own.";
+}
+
+function updateSourceInfo(){
+  const el = $("srcInfo");
+  el.innerHTML = "";
+  const id = Number($("fSource").value) || 0;
+  if (!id) return;
+  const row = state.sources.find(r => r.id === id);
+  if (!row) return;
+  const m = state.map.sources;
+  const get = k => { const c = m[k]; const v = c ? row[c] : null; return (typeof v === "string" && v.trim()) ? v.trim() : ""; };
+
+  const street = get("street"), city = get("city"), st = get("state"), zip = get("zip");
+  const line = [street, [city, st].filter(Boolean).join(", "), zip].filter(Boolean).join(" · ");
+  if (!line) return;
+
+  el.append(document.createTextNode(line + " "));
+  const q = [get("name"), street, city, st, zip].filter(Boolean).join(" ");
+  const a = document.createElement("a");
+  a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = "map";
+  a.style.color = "var(--teal)";
+  el.appendChild(a);
 }
 
 function fillSources(){
@@ -568,7 +670,14 @@ async function createSource(){
   }
   const fields = {};
   fields[state.map.sources.name] = name;
-  if (state.map.sources.city && $("sCity").value.trim()) fields[state.map.sources.city] = $("sCity").value.trim();
+  const opt = (key, el, tf) => {
+    const v = $(el).value.trim();
+    if (state.map.sources[key] && v) fields[state.map.sources[key]] = tf ? tf(v) : v;
+  };
+  opt("street","sStreet");
+  opt("city","sCity");
+  opt("state","sState", v => v.toUpperCase());
+  opt("zip","sZip");
   if (state.map.sources.type && $("sType").value.trim()) fields[state.map.sources.type] = $("sType").value.trim();
 
   setStatus("Creating source…","busy");
@@ -577,8 +686,10 @@ async function createSource(){
     const newId = res.retValues[0];
     state.sources = toRows(await grist.docApi.fetchTable("Sources"));
     fillSources();
+    fillSuggestions();
     $("fSource").value = String(newId);
-    $("sName").value = $("sCity").value = $("sType").value = "";
+    updateSourceInfo();
+    ["sName","sStreet","sCity","sZip","sType"].forEach(i => { $(i).value = ""; });
     $("sourceDrawer").hidden = true;
     suggestName();
     setStatus("Source added","ok");
@@ -654,7 +765,7 @@ function wire(){
 
   $("fName").addEventListener("input", () => { $("fName").dataset.touched = "1"; });
   $("fDate").addEventListener("change", suggestName);
-  $("fSource").addEventListener("change", suggestName);
+  $("fSource").addEventListener("change", () => { suggestName(); updateSourceInfo(); });
   $("fBox").addEventListener("change", saveOptions);
 
   document.addEventListener("keydown", e => {
