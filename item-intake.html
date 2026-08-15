@@ -207,6 +207,9 @@ body.big-mode .cols{grid-template-columns:1fr 340px}
         <label for="ctxLot">Lot</label>
         <select id="ctxLot"><option value="0">— none —</option></select>
       </div>
+      <div class="f" style="grid-column:1/-1;gap:0">
+        <span class="note" id="lotHint" style="margin:0"></span>
+      </div>
       <div class="f">
         <label for="ctxSource">Source</label>
         <select id="ctxSource"><option value="0">— none —</option></select>
@@ -443,6 +446,12 @@ function ymdToEpoch(ymd){
   if (!m) return null;
   return Date.UTC(+m[1], +m[2] - 1, +m[3]) / 1000;
 }
+function epochToYmd(v){
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  if (typeof v !== "number" || !isFinite(v)) return "";
+  const d = new Date(v * 1000), p = n => String(n).padStart(2,"0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth()+1) + "-" + p(d.getUTCDate());
+}
 function todayYmd(){
   const d = new Date();
   const p = n => String(n).padStart(2, "0");
@@ -574,6 +583,36 @@ async function loadLookups(){
   fillSelect("allocLot", state.lots, state.labelCols.Lots);
   fillSelect("ctxSource", state.sources, state.labelCols.Sources);
   setStatus("Ready", "ok");
+}
+
+/* The lot already knows its source, date and where the box is — carry them over. */
+function applyLotContext(){
+  const hint = $("lotHint");
+  hint.textContent = "";
+  const lotId = Number($("ctxLot").value) || 0;
+  if (!lotId) return;
+
+  const lot = state.lots.find(r => r.id === lotId);
+  if (!lot) return;
+
+  const filled = [];
+
+  const srcId = refId(lot.source);
+  if (srcId && [...$("ctxSource").options].some(o => o.value === String(srcId))){
+    $("ctxSource").value = String(srcId);
+    filled.push("source");
+  }
+
+  const ymd = epochToYmd(lot.lot_date);
+  if (ymd){ $("ctxDate").value = ymd; filled.push("date"); }
+
+  const loc = lot.storage_location;
+  if (typeof loc === "string" && loc.trim()){
+    $("ctxLoc").value = loc.trim();
+    filled.push("location");
+  }
+
+  if (filled.length) hint.textContent = "Filled " + filled.join(", ") + " from this lot — change any of them if this item differs.";
 }
 
 function fillSelect(id, rows, labelCol){
@@ -852,6 +891,7 @@ function wireUi(){
   $("btnReload").addEventListener("click", loadLookups);
   ["ctxLot","ctxSource","ctxDate","ctxLoc"].forEach(id =>
     $(id).addEventListener("change", saveOptions));
+  $("ctxLot").addEventListener("change", applyLotContext);
   $("labLots").addEventListener("change", e => {
     state.labelCols.Lots = e.target.value || pickLabelCol(state.lots);
     fillSelect("ctxLot", state.lots, state.labelCols.Lots);
@@ -888,6 +928,7 @@ async function boot(){
     await loadLookups();
     if (opts.lastLot) $("ctxLot").value = opts.lastLot;
     if (opts.lastSource) $("ctxSource").value = opts.lastSource;
+    if (opts.lastLot) applyLotContext();
   } catch (e){
     log("Options load failed: " + e.message);
     await loadLookups();
