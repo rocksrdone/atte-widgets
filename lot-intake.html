@@ -99,6 +99,14 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .empty{padding:16px 14px;color:var(--muted);font-size:13px;font-style:italic}
 
 .note{font-size:12.5px;color:var(--muted);margin-top:9px;line-height:1.55}
+.receipt-box{margin-top:12px;padding:11px 13px;border:1.5px solid #9ACFC7;
+  border-radius:6px;background:var(--teal-light)}
+.receipt-box[hidden]{display:none}
+.receipt-row{display:flex;gap:8px;align-items:center}
+.receipt-row input{flex:1;min-width:0;font-family:'DM Mono',monospace;font-size:12.5px;
+  background:#fff;border:1.5px solid var(--rule);border-radius:5px;padding:6px 8px}
+.receipt-box .note{color:#2E6B60}
+.pill.noreceipt{background:var(--gold-light);color:var(--gold);border:1px solid #D4B07A}
 .badge{font-family:'DM Mono',monospace;font-size:12px;background:var(--teal-light);color:var(--teal);
   border:1px solid #9ACFC7;border-radius:3px;padding:1px 7px}
 details{margin-top:16px}
@@ -233,6 +241,15 @@ body.big-mode .note{font-size:15px}
           <button class="btn quiet" id="btnClear">Clear</button>
         </div>
         <p class="note" id="createNote">The rough count is what drives the sorting progress bars on the right. A guess is fine.</p>
+
+        <div class="receipt-box" id="receiptBox" hidden>
+          <div class="slabel" style="color:var(--teal);margin-bottom:6px">Scan the receipt as</div>
+          <div class="receipt-row">
+            <input type="text" id="receiptName" readonly>
+            <button class="btn ghost small" id="btnCopyName">Copy</button>
+          </div>
+          <div class="note" id="receiptPath"></div>
+        </div>
       </section>
 
       <details>
@@ -278,7 +295,8 @@ const LOT_FIELDS = [
   {key:"box",    label:"Storage location",pats:[/location|storage|box|where|bin|shelf/i], kind:"text"},
   {key:"est",    label:"Rough item count",pats:[/est|expected|approx|item_?count|qty|quantity|pieces/i], kind:"num"},
   {key:"notes",  label:"Notes",           pats:[/note|desc|comment/i], kind:"text"},
-  {key:"status", label:"Status",          pats:[/status|state|stage/i], kind:"text"}
+  {key:"status",  label:"Status",       pats:[/status|state|stage/i], kind:"text"},
+  {key:"receipt", label:"Receipt file",  pats:[/receipt|scan_?file|filename/i], kind:"text"}
 ];
 const SOURCE_FIELDS = [
   {key:"name",   label:"Source name", pats:[/^(source_?)?(name|label|title)$/i,/name|label|title/i], kind:"text"},
@@ -296,7 +314,7 @@ const COMMON_TYPES = ["Estate sale","Auction","Thrift store","Bin store","Antiqu
 /* Known ATTE columns — used when nothing is saved yet, before falling back to guessing */
 const DEFAULT_MAP = {
   lots:{name:"lot_name", date:"lot_date", source:"source", paid:"total_cost_usd",
-        box:"storage_location", est:"est_items", notes:"notes"},
+        box:"storage_location", est:"est_items", notes:"notes", receipt:"receipt_file"},
   sources:{name:"name", street:"street_address", city:"city", state:"state",
            zip:"zip", type:"source_type"}
 };
@@ -339,6 +357,22 @@ function ymdToEpoch(ymd){
 function todayYmd(){
   const d=new Date(), p=n=>String(n).padStart(2,"0");
   return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function slug(t){
+  return String(t||"").toLowerCase()
+    .replace(/&/g," and ")
+    .replace(/[^a-z0-9]+/g,"-")
+    .replace(/^-+|-+$/g,"")
+    .slice(0,40);
+}
+function receiptName(lotId, ymd, sourceName){
+  const parts = [lotId || "LOT", (ymd || todayYmd())];
+  const sl = slug(sourceName);
+  if (sl) parts.push(sl);
+  return parts.join("_") + ".pdf";
+}
+function receiptFolder(ymd){
+  return "~/Nextcloud2/At the Tail End/receipts/" + (ymd || todayYmd()).slice(0,4) + "/";
 }
 function money(n){ return "$" + (Math.round((n||0)*100)/100).toFixed(2); }
 function moneyShort(n){
@@ -621,6 +655,16 @@ function renderQueue(){
     pill.textContent = sorted ? "sorted" : "to sort";
     meta.appendChild(pill);
     meta.append(" " + st.filed + (st.est ? " of ~" + st.est : "") + " items filed");
+    if (state.map.lots.receipt){
+      const rv = lot[state.map.lots.receipt];
+      if (!(typeof rv === "string" && rv.trim())){
+        const nr = document.createElement("span");
+        nr.className = "pill noreceipt";
+        nr.style.marginLeft = "6px";
+        nr.textContent = "no receipt";
+        meta.appendChild(nr);
+      }
+    }
     if (gap){
       const g = document.createElement("span");
       g.className = "pill gap";
@@ -718,8 +762,10 @@ async function createLot(another){
   if (m.notes && $("fNotes").value.trim()) fields[m.notes] = $("fNotes").value.trim();
 
   setStatus("Creating lot…","busy");
+  let newRowId;
   try {
-    await grist.docApi.applyUserActions([["AddRecord","Lots",null,fields]]);
+    const res = await grist.docApi.applyUserActions([["AddRecord","Lots",null,fields]]);
+    newRowId = res && res.retValues && res.retValues[0];
   } catch(e){
     setStatus("Lot not created","err");
     showError("Grist rejected the new lot: "+e.message+
@@ -728,6 +774,30 @@ async function createLot(another){
   }
 
   state.lots = toRows(await grist.docApi.fetchTable("Lots"));
+
+  // lot_id is a trigger formula, so it only exists after the write
+  const created = state.lots.find(r => r.id === newRowId);
+  const lotCode = (created && typeof created.lot_id === "string" && created.lot_id.trim())
+    ? created.lot_id.trim()
+    : "LOT-" + String(newRowId || 0).padStart(4,"0");
+
+  const srcSel = $("fSource");
+  const srcName = srcSel.value !== "0" ? srcSel.options[srcSel.selectedIndex].textContent : "";
+  const fname = receiptName(lotCode, $("fDate").value, srcName);
+
+  if (m.receipt && created){
+    try {
+      const patch = {};
+      patch[m.receipt] = fname;
+      await grist.docApi.applyUserActions([["UpdateRecord","Lots",newRowId,patch]]);
+      created[m.receipt] = fname;
+    } catch(e){ log("Could not store receipt filename: "+e.message); }
+  }
+
+  $("receiptName").value = fname;
+  $("receiptPath").textContent = "Save the scan in " + receiptFolder($("fDate").value);
+  $("receiptBox").hidden = false;
+
   renderQueue();
   setStatus("Created “"+name+"”","ok");
   $("createNote").innerHTML = "Lot created. It's in the intake widget's Lot list now — reload that page if it's already open.";
@@ -738,6 +808,7 @@ async function createLot(another){
 }
 
 function clearForm(keepBox){
+  $("receiptBox").hidden = true;
   $("fName").value = "";
   $("fName").dataset.touched = "0";
   $("fPaid").value = "";
@@ -759,6 +830,20 @@ function wire(){
     const d = $("sourceDrawer");
     d.hidden = !d.hidden;
     if (!d.hidden) $("sName").focus();
+  });
+  $("btnCopyName").addEventListener("click", async () => {
+    const el = $("receiptName");
+    const btn = $("btnCopyName");
+    try {
+      await navigator.clipboard.writeText(el.value);
+    } catch(e){
+      el.removeAttribute("readonly");
+      el.select(); el.setSelectionRange(0, 99999);
+      try { document.execCommand("copy"); } catch(e2){ log("Copy blocked: "+e2.message); }
+      el.setAttribute("readonly","");
+    }
+    btn.textContent = "Copied";
+    setTimeout(() => { btn.textContent = "Copy"; }, 1400);
   });
   $("btnSaveSource").addEventListener("click", createSource);
   $("btnCancelSource").addEventListener("click", () => { $("sourceDrawer").hidden = true; });
