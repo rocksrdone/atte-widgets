@@ -385,9 +385,9 @@ function sampleOf(rows, col){
 }
 
 /* Pick the best column for a logical field, honouring value shape */
-function detect(rows, field, taken){
-  if (!rows.length) return "";
-  const cols = Object.keys(rows[0]).filter(c => c!=="id" && c!=="manualSort" && !taken.has(c));
+function detect(rows, field, taken, allCols){
+  const cols = (allCols || []).filter(c => c!=="id" && c!=="manualSort" && !c.startsWith("gristHelper") && !taken.has(c));
+  if (!cols.length) return "";
   const shapeOk = c => {
     const s = sampleOf(rows, c);
     if (s === null) return true;                       // empty column, can't tell
@@ -430,8 +430,9 @@ async function loadAll(){
     state.lots = toRows(lots);
     state.sources = toRows(sources);
     state.items = toRows(items);
-    state.lotCols = state.lots.length ? Object.keys(state.lots[0]) : [];
-    state.sourceCols = state.sources.length ? Object.keys(state.sources[0]) : [];
+    // Column names come from the table itself, so an empty table still maps.
+    state.lotCols = Object.keys(lots || {});
+    state.sourceCols = Object.keys(sources || {});
     log("Lots "+state.lots.length+" rows, cols: "+state.lotCols.join(", "));
     log("Sources "+state.sources.length+" rows, cols: "+state.sourceCols.join(", "));
     log("Items "+state.items.length+" rows");
@@ -465,13 +466,13 @@ function autoMap(){
   const takenL = new Set(Object.values(state.map.lots).filter(Boolean));
   LOT_FIELDS.forEach(f => {
     if (state.map.lots[f.key]) return;
-    const c = detect(state.lots, f, takenL);
+    const c = detect(state.lots, f, takenL, state.lotCols);
     if (c){ state.map.lots[f.key]=c; takenL.add(c); }
   });
   const takenS = new Set(Object.values(state.map.sources).filter(Boolean));
   SOURCE_FIELDS.forEach(f => {
     if (state.map.sources[f.key]) return;
-    const c = detect(state.sources, f, takenS);
+    const c = detect(state.sources, f, takenS, state.sourceCols);
     if (c){ state.map.sources[f.key]=c; takenS.add(c); }
   });
 

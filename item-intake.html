@@ -468,9 +468,10 @@ function eraForYear(y){
 }
 
 /* Guess which column of a lookup table to show in a dropdown */
-function pickLabelCol(rows){
-  if (!rows.length) return "id";
-  const keys = Object.keys(rows[0]).filter(k => k !== "id" && k !== "manualSort");
+function pickLabelCol(rows, cols){
+  const keys = (cols && cols.length ? cols : (rows.length ? Object.keys(rows[0]) : []))
+    .filter(k => k !== "id" && k !== "manualSort" && !k.startsWith("gristHelper"));
+  if (!keys.length) return "id";
   const score = k => {
     const s = k.toLowerCase();
     if (/(^|_)(name|label|title)($|_)/.test(s)) return 0;
@@ -494,6 +495,7 @@ const state = {
   condition:"",
   lots:[], sources:[],
   labelCols:{Lots:"", Sources:""},
+  cols:{Lots:[], Sources:[]},
   filed:[],           // {rowId, itemId, title, cost}
   tables:[]
 };
@@ -566,9 +568,14 @@ async function loadLookups(){
 
   for (const t of ["Lots", "Sources"]){
     try {
-      const rows = toRows(await grist.docApi.fetchTable(t));
+      const tbl = await grist.docApi.fetchTable(t);
+      const rows = toRows(tbl);
+      const cols = Object.keys(tbl || {});
       state[t.toLowerCase()] = rows;
-      const chosen = state.labelCols[t] || pickLabelCol(rows);
+      state.cols[t] = cols;
+      // A saved choice is kept only if that column still exists; "id" was the old empty-table fallback.
+      const saved = state.labelCols[t];
+      const chosen = (saved && saved !== "id" && cols.includes(saved)) ? saved : pickLabelCol(rows, cols);
       state.labelCols[t] = chosen;
       log(t + ": " + rows.length + " rows, label column = " + chosen);
       fillLabelPicker(t, rows, chosen);
@@ -633,8 +640,8 @@ function fillSelect(id, rows, labelCol){
 function fillLabelPicker(table, rows, chosen){
   const sel = $(table === "Lots" ? "labLots" : "labSources");
   sel.innerHTML = '<option value="">auto</option>';
-  if (!rows.length) return;
-  Object.keys(rows[0]).forEach(k => {
+  const cols = state.cols[table] || (rows.length ? Object.keys(rows[0]) : []);
+  cols.filter(k => k !== "manualSort" && !k.startsWith("gristHelper")).forEach(k => {
     const o = document.createElement("option");
     o.value = k; o.textContent = k;
     sel.appendChild(o);
@@ -893,13 +900,13 @@ function wireUi(){
     $(id).addEventListener("change", saveOptions));
   $("ctxLot").addEventListener("change", applyLotContext);
   $("labLots").addEventListener("change", e => {
-    state.labelCols.Lots = e.target.value || pickLabelCol(state.lots);
+    state.labelCols.Lots = e.target.value || pickLabelCol(state.lots, state.cols.Lots);
     fillSelect("ctxLot", state.lots, state.labelCols.Lots);
     fillSelect("allocLot", state.lots, state.labelCols.Lots);
     saveOptions();
   });
   $("labSources").addEventListener("change", e => {
-    state.labelCols.Sources = e.target.value || pickLabelCol(state.sources);
+    state.labelCols.Sources = e.target.value || pickLabelCol(state.sources, state.cols.Sources);
     fillSelect("ctxSource", state.sources, state.labelCols.Sources);
     saveOptions();
   });
