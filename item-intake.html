@@ -186,6 +186,9 @@ body.big-mode .filed .t{font-size:16px}
 body.big-mode .tally{font-size:38px}
 body.big-mode .note{font-size:15px}
 body.big-mode .cols{grid-template-columns:1fr 340px}
+/* keep the status clear of the Big view button */
+.status{margin-right:96px}
+body.big-mode .status{margin-right:124px}
 </style>
 </head>
 <body>
@@ -895,6 +898,14 @@ function wireUi(){
   $("btnClear").addEventListener("click", () => { resetForm(false); $("fTitle").focus(); });
   $("btnUndo").addEventListener("click", undoLast);
   $("btnAlloc").addEventListener("click", previewAlloc);
+  // Picking a lot fills in what the lot says you paid (still editable, e.g. for a receipt total).
+  $("allocLot").addEventListener("change", () => {
+    const lot = state.lots.find(r => r.id === (Number($("allocLot").value) || 0));
+    const paid = lot ? Number(lot.total_cost_usd) || 0 : 0;
+    $("allocTotal").value = paid ? paid.toFixed(2) : "";
+    allocPlan = null;
+    $("allocNote").textContent = "Rounds to whole cents and puts any remainder on the first item, so the parts always add up to the total.";
+  });
   $("btnReload").addEventListener("click", loadLookups);
   ["ctxLot","ctxSource","ctxDate","ctxLoc"].forEach(id =>
     $(id).addEventListener("change", saveOptions));

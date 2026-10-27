@@ -17,8 +17,8 @@ from atte_build import Grist, read_key
 
 BASE = "https://rocksrdone.github.io/atte-widgets/"
 PAGES = [  # (page name, source table, widget file, version, linked grid beside it?)
-    ("Lot Intake", "Lots", "lot-intake.html", 11, False),
-    ("Item Intake", "Items", "item-intake.html", 11, False),
+    ("Lot Intake", "Lots", "lot-intake.html", 12, False),
+    ("Item Intake", "Items", "item-intake.html", 12, False),
     ("Scanning Dashboard", "Items", "scanning-dashboard.html", 10, False),
     # Research works on the row selected in an Items grid on the same page.
     ("Research", "Items", "research-console.html", 1, True),
