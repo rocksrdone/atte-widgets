@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATTE — Research Console</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+:root{
+  --ink:#1A1614; --paper:#F7F3EE; --warm:#E8DFD4; --rule:#D4C9BC; --muted:#7A6C61;
+  --accent:#8B3A2A; --accent-light:#F2E8E5; --teal:#3A8B7A; --teal-light:#E5F2EF;
+  --gold:#B07D2A; --gold-light:#F5EDD8;
+  --done-bg:#EAF3DE; --done-border:#639922; --done-text:#27500A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none !important}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;
+  font-size:14px;line-height:1.5;overflow-x:hidden}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+a{color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:12px 16px 44px}
+
+.slabel{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* ── item header ── */
+.register{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:12px 14px 14px;
+  position:sticky;top:0;z-index:20;box-shadow:0 2px 10px rgba(26,22,20,.05)}
+.register-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-right:104px}
+.acc{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--teal)}
+.register h1{font-family:'Libre Baskerville',serif;font-size:19px;font-weight:700;line-height:1.25;
+  flex:1 1 260px;min-width:0}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.pill{font-size:12px;font-weight:500;padding:2px 10px;border-radius:11px;
+  background:var(--warm);border:1px solid var(--rule);color:var(--ink)}
+.pill.pd-ok{background:var(--done-bg);border-color:var(--done-border);color:var(--done-text)}
+.pill.pd-no{background:var(--accent-light);border-color:#D4A49A;color:var(--accent)}
+.pill.pd-q{background:var(--gold-light);border-color:#D4B07A;color:#7A5410}
+.status{margin-left:auto;font-size:12px;font-weight:600;padding:3px 11px;border-radius:11px;
+  background:var(--warm);border:1px solid var(--rule);color:var(--muted)}
+.status.ok{background:var(--done-bg);border-color:var(--done-border);color:var(--done-text)}
+.status.err{background:var(--accent-light);border-color:#D4A49A;color:var(--accent)}
+.status.busy{background:var(--teal-light);border-color:#9ACFC7;color:var(--teal)}
+
+/* ── layout ── */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:14px 16px 16px}
+.stack > .panel + .panel{margin-top:16px}
+.panel-head{display:flex;align-items:baseline;gap:9px;margin-bottom:11px;flex-wrap:wrap}
+.panel-head h2{font-family:'Libre Baskerville',serif;font-size:15px;font-weight:700}
+.panel-head .sub{font-size:12.5px;color:var(--muted)}
+
+/* ── fields ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 14px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f.wide{grid-column:1/-1}
+.f label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.f input,.f select,.f textarea{background:#fff;border:1.5px solid var(--rule);border-radius:5px;padding:7px 9px;width:100%}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.f textarea{resize:vertical;min-height:52px;line-height:1.55}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── buttons & links ── */
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;text-decoration:none;
+  border:1.5px solid var(--accent);background:var(--accent);color:#fff;
+  padding:8px 16px;border-radius:20px;cursor:pointer;transition:filter .15s ease,background .15s ease}
+.btn:hover{filter:brightness(1.1)}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-light);filter:none}
+.btn.quiet{background:#fff;color:var(--muted);border-color:var(--rule)}
+.btn.quiet:hover{background:var(--warm);filter:none}
+.btn.teal{background:var(--teal);border-color:var(--teal)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.4;cursor:not-allowed;filter:none;pointer-events:none}
+.btn.small{padding:5px 12px;font-size:12.5px}
+
+.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin-top:10px}
+.lk{display:block;text-decoration:none;background:#fff;border:1.5px solid var(--warm);border-radius:5px;
+  padding:7px 10px;transition:border-color .15s ease,background .15s ease}
+.lk:hover{border-color:var(--rule);background:var(--paper)}
+.lk b{display:block;font-size:13.5px;font-weight:600}
+.lk span{display:block;font-size:12px;color:var(--muted);line-height:1.35}
+.group-lab{margin-top:14px}
+
+/* ── rule box ── */
+.rulebox{margin-top:12px;padding:10px 12px;border-radius:6px;border:1px solid #D4B07A;
+  background:var(--gold-light);color:#5C3F0C;font-size:13.5px;line-height:1.5}
+.rulebox.ok{border-color:var(--done-border);background:var(--done-bg);color:var(--done-text)}
+.rulebox .slabel{color:inherit;opacity:.8;display:block;margin-bottom:2px}
+
+.note{font-size:12.5px;color:var(--muted);margin-top:9px;line-height:1.55}
+.empty-state{background:#fff;border:1px dashed var(--rule);border-radius:8px;padding:28px 20px;
+  text-align:center;color:var(--muted);margin-top:16px}
+.empty-state h2{font-family:'Libre Baskerville',serif;font-size:17px;color:var(--ink);margin-bottom:6px}
+details{margin-top:16px}
+details.inner{margin-top:12px}
+summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+pre.diag{font-family:'DM Mono',monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;
+  background:var(--warm);border:1px solid var(--rule);border-radius:5px;padding:10px;max-height:280px;overflow:auto;margin-top:10px}
+.preview{font-family:'DM Mono',monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;
+  background:var(--paper);border:1px solid var(--rule);border-radius:5px;padding:9px 10px;margin-top:10px;
+  max-height:220px;overflow:auto;color:var(--ink)}
+.err-banner{background:var(--accent-light);border:1px solid #D4A49A;border-radius:6px;color:var(--accent);
+  padding:10px 13px;margin-bottom:12px;font-size:13px;line-height:1.55}
+.err-banner strong{display:block;font-weight:600;margin-bottom:2px}
+
+/* ── big mode ── */
+.big-toggle-btn{position:fixed;top:12px;right:12px;z-index:500;padding:6px 13px;border-radius:20px;
+  border:1.5px solid var(--accent);background:#fff;color:var(--accent);font-size:12px;font-weight:600;
+  cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+body.big-mode .big-toggle-btn{background:var(--accent);color:#fff}
+body.big-mode{font-size:17px}
+body.big-mode .register h1{font-size:24px}
+body.big-mode .acc{font-size:18px}
+body.big-mode .f label,body.big-mode .slabel{font-size:13px}
+body.big-mode .f input,body.big-mode .f select,body.big-mode .f textarea{padding:9px 11px}
+body.big-mode .btn{font-size:16px;padding:10px 20px}
+body.big-mode .panel-head h2{font-size:18px}
+body.big-mode .lk b{font-size:16px}
+body.big-mode .lk span,body.big-mode .note,body.big-mode .pill{font-size:14.5px}
+body.big-mode .rulebox{font-size:16px}
+body.big-mode .cols{grid-template-columns:1fr}
+body.big-mode .register-top{padding-right:132px}
+</style>
+</head>
+<body>
+<button class="big-toggle-btn" id="bigToggle">Big view</button>
+
+<div class="wrap">
+  <div id="errBanner" class="err-banner" hidden></div>
+
+  <section class="register" aria-label="Selected item">
+    <div class="register-top">
+      <span class="acc" id="hId">—</span>
+      <h1 id="hTitle">Select an item in the grid</h1>
+      <span class="status" id="status">Loading…</span>
+    </div>
+    <div class="meta" id="hMeta"></div>
+  </section>
+
+  <div class="empty-state" id="emptyState">
+    <h2>Pick an item to research</h2>
+    <p>Click a row in the Items grid beside this panel. Everything here works on that one item.</p>
+  </div>
+
+  <div class="cols" id="main" hidden>
+    <div class="stack">
+      <!-- ===== field guide ===== -->
+      <section class="panel">
+        <div class="panel-head"><h2>Field guide</h2><span class="sub">Knowledge lives in Obsidian</span></div>
+        <div class="actions" style="margin-top:0">
+          <a class="btn" id="lnkGuide" href="#">Open field guide</a>
+          <a class="btn quiet small" id="lnkIndex" href="#">Field Guide Index</a>
+        </div>
+        <p class="note" id="guideNote"></p>
+      </section>
+
+      <!-- ===== research links ===== -->
+      <section class="panel">
+        <div class="panel-head"><h2>Look it up</h2><span class="sub">Opens in a new tab</span></div>
+        <div class="f">
+          <label for="q">Search for</label>
+          <input id="q" type="text" autocomplete="off">
+        </div>
+        <div id="linkGroups"></div>
+        <p class="note">Edit the search words to narrow it — the links update as you type.</p>
+      </section>
+
+      <!-- ===== capture a finding ===== -->
+      <section class="panel">
+        <div class="panel-head"><h2>Capture a finding</h2><span class="sub">General knowledge → 00 Inbox</span></div>
+        <div class="grid">
+          <div class="f wide">
+            <label for="fTitle">Note title</label>
+            <input id="fTitle" type="text" placeholder="e.g. Curt Teich linen backs carry a code date">
+          </div>
+          <div class="f wide">
+            <label for="fBody">What you learned</label>
+            <textarea id="fBody" rows="4" placeholder="Something true of the category, not just this one object."></textarea>
+          </div>
+          <div class="f">
+            <label for="fPricing">Mentions a price?</label>
+            <select id="fPricing">
+              <option value="">No price in it</option>
+              <option>own-sold</option>
+              <option>ebay-sold-comps</option>
+              <option>auction-record</option>
+              <option>price-guide</option>
+              <option>claude-estimate</option>
+              <option>dealer-hearsay</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="fCredit">Mention this item?</label>
+            <select id="fCredit">
+              <option value="yes">Yes — “Observed on …”</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn teal" id="lnkCapture" href="#" aria-disabled="true">Send to Obsidian inbox</a>
+          <button class="btn quiet small" id="btnPreview">Preview note</button>
+        </div>
+        <pre class="preview" id="capPreview" hidden></pre>
+        <p class="note">Follows Vault Conventions: frontmatter uses only the contract keys, and a price adds
+          <code>pricing_source</code>, <code>pricing_date</code> and <code>review_by</code>. Facts about this one
+          object belong in Grist, not here.</p>
+      </section>
+    </div>
+
+    <div class="stack">
+      <!-- ===== public domain ===== -->
+      <section class="panel">
+        <div class="panel-head"><h2>Public domain</h2><span class="sub" id="pdSub">Recorded in PD_Research</span></div>
+        <div class="grid">
+          <div class="f">
+            <label for="pPublished">Published?</label>
+            <select id="pPublished"><option value="">—</option><option>Yes</option><option>No</option><option>Unknown</option></select>
+          </div>
+          <div class="f" data-when="Yes">
+            <label for="pPubYear">Publication year</label>
+            <input id="pPubYear" type="number" min="1600" max="2100" placeholder="1908">
+          </div>
+          <div class="f" data-when="Yes">
+            <label for="pNotice">Copyright notice?</label>
+            <select id="pNotice"><option value="">—</option><option>Yes</option><option>No</option><option>Not checked</option></select>
+          </div>
+          <div class="f" data-when="No">
+            <label for="pCreated">Creation year</label>
+            <input id="pCreated" type="number" min="1600" max="2100" placeholder="c. 1920">
+          </div>
+          <div class="f" data-when="No">
+            <label for="pAuthor">Author / photographer</label>
+            <input id="pAuthor" type="text" placeholder="blank if unknown">
+          </div>
+          <div class="f" data-when="No">
+            <label for="pDeath">Author died</label>
+            <input id="pDeath" type="number" min="1600" max="2100">
+          </div>
+          <div class="f">
+            <label for="pPublisher">Publisher / printer</label>
+            <input id="pPublisher" type="text">
+          </div>
+          <div class="f">
+            <label for="pRenewal">Renewal searched?</label>
+            <select id="pRenewal"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </div>
+          <div class="f wide">
+            <label for="pTrail">Notice text, renewal result, sources checked</label>
+            <textarea id="pTrail" rows="2" placeholder="No notice on back. Stanford renewals: no match for publisher 1931–35."></textarea>
+          </div>
+          <div class="f wide">
+            <label for="pBasis">Basis (the reasoning, not just a verdict)</label>
+            <input id="pBasis" type="text" placeholder="published 1908, pre-1931 cutoff">
+          </div>
+          <div class="f wide">
+            <label for="pTrademark">Trademark / character concern</label>
+            <input id="pTrademark" type="text" placeholder="blank if none; e.g. Coca-Cola script logo">
+          </div>
+          <div class="f">
+            <label for="pVerdict">Verdict</label>
+            <select id="pVerdict"><option value="">— not yet —</option><option>Verified PD</option><option>Not PD</option><option>Uncertain</option></select>
+          </div>
+          <div class="f">
+            <label for="pConfidence">Confidence</label>
+            <select id="pConfidence"><option value="">—</option><option>High</option><option>Medium</option><option>Low</option></select>
+          </div>
+          <div class="f wide">
+            <label for="pListing">Approved listing language</label>
+            <textarea id="pListing" rows="2" placeholder="Name names, state the date, state the PD basis briefly."></textarea>
+          </div>
+        </div>
+        <div class="rulebox" id="ruleBox" hidden><span class="slabel">The year rule says</span><span id="ruleText"></span></div>
+        <div class="actions">
+          <button class="btn" id="btnSavePD">Save to Grist</button>
+          <a class="btn quiet small" id="lnkPDNote" href="#">Public Domain Dating note</a>
+        </div>
+        <p class="note">The rule is a suggestion from the date ladder. The verdict is yours — close to the line means
+          <b>Uncertain</b>, never a guess. Scans and packs read their PD status from here.</p>
+      </section>
+
+      <!-- ===== long-form (rare) ===== -->
+      <section class="panel">
+        <details class="inner" id="longForm" style="margin-top:0">
+          <summary>Long-form note for this one object (rare)</summary>
+          <p class="note">Only for a piece that earns its own write-up — a signed item, an unusual provenance.
+            The vault's rule is under a dozen of these, ever. Creates the note in <code>00 Inbox</code> with
+            <code>grist_ref</code> and records its title on the item.</p>
+          <div class="actions">
+            <a class="btn ghost" id="lnkLong" href="#">Create long-form note</a>
+          </div>
+        </details>
+      </section>
+    </div>
+  </div>
+
+  <details>
+    <summary>Diagnostics</summary>
+    <pre class="diag" id="diag"></pre>
+  </details>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const VAULT = "At the Tail End";
+const GUIDE_DIR = "01 Field Guides/";
+const INBOX = "00 Inbox/";
+const PD_NOTE = "02 Reference/Public Domain Dating";
+const PD_COLS = ["item_id","scan_id","title","published","publication_year","creation_year","author",
+  "author_death_year","publisher","copyright_notice","notice_text","renewal_searched","renewal_result",
+  "sources_checked","rule_suggestion","pd_basis","trademark_concern","verdict","confidence","verified_date",
+  "approved_listing_language"];
+const ITEM_COLS = ["item_id","title","prefix","category","era","field_guide","obsidian_note"];
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const diagLines = [];
+function log(m){
+  diagLines.push(new Date().toLocaleTimeString() + "  " + m);
+  if (diagLines.length > 200) diagLines.shift();
+  $("diag").textContent = diagLines.join("\n");
+}
+function setStatus(t, k){ const e = $("status"); e.textContent = t; e.className = "status" + (k ? " " + k : ""); }
+function showError(m){ const b = $("errBanner"); b.hidden = false; b.innerHTML = "<strong>Something went wrong</strong>" + m; log("ERROR: " + m); }
+function clearError(){ $("errBanner").hidden = true; }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function toRows(tbl){
+  if (!tbl) return [];
+  const keys = Object.keys(tbl);
+  if (!keys.length) return [];
+  const n = (tbl.id || tbl[keys[0]] || []).length;
+  const out = [];
+  for (let i = 0; i < n; i++){ const r = {}; for (const k of keys) r[k] = tbl[k][i]; out.push(r); }
+  return out;
+}
+function refId(v){
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return v;
+  if (Array.isArray(v)) return (v[0] === "R" || v[0] === "r") ? Number(v[2]) || 0 : 0;
+  if (typeof v === "object" && "id" in v) return Number(v.id) || 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+/* Dates arrive as epoch seconds from fetchTable and as Date objects from onRecord. One helper for both. */
+function toYmd(v){
+  if (v == null || v === "") return "";
+  if (v instanceof Date) return isNaN(v) ? "" : v.toISOString().slice(0, 10);
+  if (typeof v === "number" && isFinite(v)) return new Date(v * 1000).toISOString().slice(0, 10);
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  return "";
+}
+function todayYmd(){
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function ymdToEpoch(ymd){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || "");
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 1000 : null;
+}
+function plusMonths(ymd, n){
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + n, Math.min(d, 28)));
+  return dt.toISOString().slice(0, 10);
+}
+function intOrNull(id){ const v = parseInt($(id).value, 10); return Number.isFinite(v) ? v : null; }
+
+/* Filenames: Obsidian and Nextcloud both dislike these characters. */
+function safeName(s){
+  return String(s || "").replace(/[\\/:*?"<>|#^\[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+}
+/* YAML string: quote when needed, escape quotes. */
+function yq(s){
+  s = String(s == null ? "" : s);
+  return /^[\w .,'()&-]+$/.test(s) && !/^[-?:,\[\]{}#&*!|>'"%@`]/.test(s) && !/:\s/.test(s)
+    ? s : '"' + s.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+}
+function obsOpen(path){
+  return "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(path);
+}
+function obsNew(path, content){
+  return "obsidian://new?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(path) +
+    "&content=" + encodeURIComponent(content);
+}
+function setLink(id, href, disabled){
+  const a = $(id);
+  a.href = disabled ? "#" : href;
+  a.setAttribute("aria-disabled", disabled ? "true" : "false");
+}
+
+/* ============================================================
+   Research links, by prefix. {q} is the URL-encoded search text.
+   ============================================================ */
+const ALL = [
+  {n:"eBay sold", d:"Completed sales — prices that actually happened", u:"https://www.ebay.com/sch/i.html?_nkw={q}&LH_Sold=1&LH_Complete=1"},
+  {n:"WorthPoint", d:"Sold archive (subscription)", u:"https://www.worthpoint.com/inventory/search?query={q}"},
+];
+const PAPER = [
+  {n:"HathiTrust", d:"Full-text books, serials, the Catalog of Copyright Entries", u:"https://babel.hathitrust.org/cgi/ls?q1={q};anyall1=phrase;lmt=all"},
+  {n:"Internet Archive", d:"Scans, periodicals, trade catalogs", u:"https://archive.org/search?query={q}"},
+  {n:"Google Books", d:"Snippets and full views", u:"https://www.google.com/search?tbm=bks&q={q}"},
+  {n:"Library of Congress", d:"Prints, photos, newspapers", u:"https://www.loc.gov/search/?q={q}"},
+  {n:"Online Books Page", d:"Free editions; links to the CCE volumes", u:"https://onlinebooks.library.upenn.edu/webbin/book/search?amode=words&tmode=words&title={q}"},
+];
+const PD_TOOLS = [
+  {n:"Stanford renewals", d:"Book renewals 1923–1963", u:"https://exhibits.stanford.edu/copyrightrenewals/catalog?q={q}"},
+  {n:"Catalog of Copyright Entries", d:"Registrations & renewals, all media", u:"https://onlinebooks.library.upenn.edu/cce/"},
+  {n:"Cornell term chart", d:"The canonical public-domain table", u:"https://guides.library.cornell.edu/copyright/publicdomain"},
+];
+const BY_PREFIX = {
+  EPH: [{lab:"Identify & date", links:PAPER}, {lab:"Copyright", links:PD_TOOLS}],
+  GAME: [{lab:"Identify", links:[
+    {n:"Bitsavers", d:"Manuals & docs for vintage computers", u:"https://www.google.com/search?q=site%3Abitsavers.org+{q}"},
+    {n:"Internet Archive software", d:"Software library, manuals", u:"https://archive.org/search?query={q}&and%5B%5D=mediatype%3A%22software%22"},
+    {n:"FCC ID search", d:"Dates hardware from its FCC grant", u:"https://fccid.io/search.php?q={q}"},
+    {n:"PriceCharting", d:"Game & console price history", u:"https://www.pricecharting.com/search-products?type=prices&q={q}"},
+  ]}],
+  MUSIC: [{lab:"Identify", links:[
+    {n:"Discogs", d:"Pressings, matrix numbers, labels", u:"https://www.discogs.com/search/?type=all&q={q}"},
+    {n:"MusicBrainz", d:"Release data", u:"https://musicbrainz.org/search?type=release&query={q}"},
+  ]}, {lab:"Sheet music & copyright", links:PD_TOOLS}],
+  MEDIA: [{lab:"Identify", links:[
+    {n:"Discogs", d:"VHS / LaserDisc / DVD releases", u:"https://www.discogs.com/search/?type=all&q={q}"},
+    {n:"IMDb", d:"Titles, release years", u:"https://www.imdb.com/find/?q={q}"},
+  ]}],
+  TOY: [{lab:"Identify", links:[
+    {n:"hobbyDB", d:"Diecast & toy catalog", u:"https://www.hobbydb.com/marketplaces/hobbydb/catalog_items?query={q}"},
+    {n:"Google Images", d:"Compare castings and variations", u:"https://www.google.com/search?tbm=isch&q={q}"},
+  ]}],
+  SMGDS: [{lab:"Identify", links:[
+    {n:"Google Images", d:"Maker's marks, patterns", u:"https://www.google.com/search?tbm=isch&q={q}"},
+    {n:"Google Patents", d:"Patent numbers stamped on goods", u:"https://patents.google.com/?q={q}"},
+  ]}],
+};
+
+function renderLinks(){
+  const q = encodeURIComponent($("q").value.trim());
+  const groups = (BY_PREFIX[state.item && state.item.prefix] || BY_PREFIX.SMGDS).concat([{lab:"Prices", links:ALL}]);
+  $("linkGroups").innerHTML = groups.map(g =>
+    '<div class="slabel group-lab">' + esc(g.lab) + '</div><div class="links">' +
+    g.links.map(l => '<a class="lk" target="_blank" rel="noopener" href="' + esc(l.u.replace(/\{q\}/g, q)) + '"><b>' +
+      esc(l.n) + '</b><span>' + esc(l.d) + '</span></a>').join("") + '</div>'
+  ).join("");
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = { item:null, pd:null, pdCols:[], ready:false };
+
+/* ============================================================
+   Item selection
+   ============================================================ */
+function showItem(rec){
+  clearError();
+  if (!rec || !rec.id){
+    state.item = null;
+    $("emptyState").hidden = false; $("main").hidden = true;
+    $("hId").textContent = "—"; $("hTitle").textContent = "Select an item in the grid"; $("hMeta").innerHTML = "";
+    return;
+  }
+  const missing = ITEM_COLS.filter(c => !(c in rec));
+  if (missing.length){
+    showError("The Items table is missing: <b>" + missing.join(", ") + "</b>. This console expects the schema from " +
+      "<code>atte_build.py</code>. If you just added a column, reload the page — new columns reach widgets late.");
+  }
+  const prevId = state.item && state.item.id;
+  state.item = {
+    id: rec.id, item_id: rec.item_id || "", title: rec.title || "", prefix: rec.prefix || "SMGDS",
+    category: rec.category || "", era: rec.era || "", field_guide: rec.field_guide || "Field Guide Index",
+    obsidian_note: rec.obsidian_note || "", acquired: toYmd(rec.acquired_date),
+  };
+  const it = state.item;
+  $("emptyState").hidden = true; $("main").hidden = false;
+  $("hId").textContent = it.item_id || ("row " + it.id);
+  $("hTitle").textContent = it.title || "(untitled)";
+  $("hMeta").innerHTML = [it.category, it.era, it.acquired && ("acquired " + it.acquired)]
+    .filter(Boolean).map(s => '<span class="pill">' + esc(s) + '</span>').join("") + '<span id="pdPill"></span>';
+
+  // Field guide
+  setLink("lnkGuide", obsOpen(GUIDE_DIR + it.field_guide), false);
+  $("lnkGuide").textContent = "Open “" + it.field_guide + "”";
+  setLink("lnkIndex", obsOpen(GUIDE_DIR + "Field Guide Index"), false);
+  $("guideNote").textContent = it.field_guide === "Field Guide Index"
+    ? "No dedicated field guide for " + (it.category || "this category") + " yet — set one on the Categories page when you write it."
+    : "Mapped from the Categories page. Change it there if the guide is renamed.";
+
+  // Search box: reset only when the selected item changes, so edits survive a refresh
+  if (prevId !== it.id){
+    $("q").value = it.title;
+    $("fTitle").value = ""; $("fBody").value = ""; $("fPricing").value = ""; $("capPreview").hidden = true;
+  }
+  renderLinks();
+  updateCapture();
+  updateLongForm();
+  if (prevId !== it.id) loadPD();
+}
+
+/* ============================================================
+   Public domain
+   ============================================================ */
+async function loadPD(){
+  const it = state.item;
+  if (!it) return;
+  try {
+    const tbl = await grist.docApi.fetchTable("PD_Research");
+    state.pdCols = Object.keys(tbl || {});
+    const missing = PD_COLS.filter(c => !state.pdCols.includes(c));
+    if (missing.length){
+      showError("PD_Research is missing: <b>" + missing.join(", ") + "</b>.");
+      return;
+    }
+    // Item-level record (no scan), newest first.
+    const rows = toRows(tbl).filter(r => refId(r.item_id) === it.id && !refId(r.scan_id))
+      .sort((a, b) => (Number(b.verified_date) || 0) - (Number(a.verified_date) || 0) || b.id - a.id);
+    if (state.item !== it) return;          // selection changed while loading
+    state.pd = rows[0] || null;
+    fillPD(state.pd);
+    log("PD record for " + it.item_id + ": " + (state.pd ? "row " + state.pd.id : "none yet"));
+  } catch (e){
+    showError("Could not read PD_Research: " + esc(e.message) + " — set this widget's Access to <b>Full document access</b>.");
+  }
+}
+
+function fillPD(r){
+  r = r || {};
+  const set = (id, v) => { $(id).value = (v == null ? "" : v); };
+  set("pPublished", r.published); set("pPubYear", r.publication_year || ""); set("pNotice", r.copyright_notice);
+  set("pCreated", r.creation_year || ""); set("pAuthor", r.author); set("pDeath", r.author_death_year || "");
+  set("pPublisher", r.publisher); set("pRenewal", r.renewal_searched);
+  set("pTrail", [r.notice_text, r.renewal_result, r.sources_checked].filter(Boolean).join("\n"));
+  set("pBasis", r.pd_basis); set("pTrademark", r.trademark_concern);
+  set("pVerdict", r.verdict); set("pConfidence", r.confidence); set("pListing", r.approved_listing_language);
+  showWhen();
+  $("pdSub").textContent = r.id ? ("Record " + (r.research_id || r.id) + (toYmd(r.verified_date) ? " · verified " + toYmd(r.verified_date) : "")) : "No record yet";
+  if (r.rule_suggestion){
+    $("ruleBox").hidden = false;
+    $("ruleText").textContent = r.rule_suggestion;
+    $("ruleBox").className = "rulebox" + (/^PD:/.test(r.rule_suggestion) ? " ok" : "");
+  } else {
+    $("ruleBox").hidden = true;
+  }
+  const v = r.verdict || "";
+  const pill = $("pdPill");
+  if (pill) pill.innerHTML = v ? '<span class="pill ' + (v === "Verified PD" ? "pd-ok" : v === "Not PD" ? "pd-no" : "pd-q") + '">' + esc(v) + '</span>'
+                               : '<span class="pill">PD: needs research</span>';
+}
+
+function showWhen(){
+  const p = $("pPublished").value;
+  document.querySelectorAll("[data-when]").forEach(el => { el.hidden = !!p && p !== "Unknown" && el.dataset.when !== p; });
+}
+
+async function savePD(){
+  const it = state.item;
+  if (!it) return;
+  clearError();
+  // The trail textarea holds three Grist fields; store it in sources_checked and keep the others if already set.
+  const fields = {
+    published: $("pPublished").value,
+    publication_year: intOrNull("pPubYear") || 0,
+    copyright_notice: $("pNotice").value,
+    creation_year: intOrNull("pCreated") || 0,
+    author: $("pAuthor").value.trim(),
+    author_death_year: intOrNull("pDeath") || 0,
+    publisher: $("pPublisher").value.trim(),
+    renewal_searched: $("pRenewal").value,
+    sources_checked: $("pTrail").value.trim(),
+    pd_basis: $("pBasis").value.trim(),
+    trademark_concern: $("pTrademark").value.trim(),
+    verdict: $("pVerdict").value,
+    confidence: $("pConfidence").value,
+    approved_listing_language: $("pListing").value.trim(),
+  };
+  if (state.pd && state.pd.id){
+    // Fields merged into the trail box on load: clear them so the text isn't duplicated next time.
+    fields.notice_text = ""; fields.renewal_result = "";
+  }
+  if (fields.verdict && !(state.pd && state.pd.verified_date)) fields.verified_date = ymdToEpoch(todayYmd());
+  if (!fields.verdict) fields.verified_date = null;
+
+  setStatus("Saving…", "busy");
+  try {
+    if (state.pd && state.pd.id){
+      await grist.docApi.applyUserActions([["UpdateRecord", "PD_Research", state.pd.id, fields]]);
+    } else {
+      fields.item_id = it.id;
+      fields.title = it.title;
+      await grist.docApi.applyUserActions([["AddRecord", "PD_Research", null, fields]]);
+    }
+    setStatus("Saved", "ok");
+    await loadPD();
+  } catch (e){
+    setStatus("Not saved", "err");
+    showError("Grist rejected the PD record: " + esc(e.message));
+  }
+}
+
+/* ============================================================
+   Capture a finding → 00 Inbox
+   ============================================================ */
+function captureNote(){
+  const it = state.item;
+  const title = safeName($("fTitle").value);
+  const body = $("fBody").value.trim();
+  if (!it || !title || !body) return null;
+  const today = todayYmd();
+  const tags = ["research", (it.prefix || "").toLowerCase()].filter(Boolean);
+  const fm = ["---",
+    "title: " + yq(title),
+    "type: research",
+    "tags: [" + tags.join(", ") + "]",
+    "status: active",
+    "prefix: " + (it.prefix || ""),
+    "category: " + yq(it.category || ""),
+    "created: " + today,
+    "updated: " + today];
+  const pricing = $("fPricing").value;
+  if (pricing){
+    fm.push("pricing_source: " + pricing, "pricing_date: " + today, "review_by: " + plusMonths(today, 12));
+  }
+  fm.push("---", "");
+  const lines = fm.concat(["# " + title, "", body, ""]);
+  if ($("fCredit").value === "yes" && it.item_id){
+    lines.push("> Observed on " + it.item_id + (it.title ? " — " + it.title : "") + " (Grist). Generalise before filing.", "");
+  }
+  lines.push("## Feeds into", "[[" + it.field_guide + "]]", "");
+  return {path: INBOX + title, content: lines.join("\n")};
+}
+function updateCapture(){
+  const n = captureNote();
+  setLink("lnkCapture", n ? obsNew(n.path, n.content) : "#", !n);
+  if (!$("capPreview").hidden) $("capPreview").textContent = n ? n.content : "Give it a title and say what you learned.";
+}
+
+/* ============================================================
+   Long-form note (rare)
+   ============================================================ */
+function longFormNote(){
+  const it = state.item;
+  const title = safeName((it.item_id ? it.item_id + " — " : "") + (it.title || "untitled"));
+  const today = todayYmd();
+  const content = ["---",
+    "title: " + yq(title),
+    "type: research",
+    "tags: [research, " + (it.prefix || "").toLowerCase() + "]",
+    "status: active",
+    "prefix: " + (it.prefix || ""),
+    "grist_ref: " + (it.item_id || ""),
+    "created: " + today,
+    "updated: " + today,
+    "---", "",
+    "# " + title, "",
+    "**Why this object gets its own note:** ", "",
+    "## Provenance", "", "## Research", "", "## Sources", "",
+    "## Feeds into", "[[" + it.field_guide + "]]", ""].join("\n");
+  return {title, path: INBOX + title, content};
+}
+function updateLongForm(){
+  const it = state.item;
+  const a = $("lnkLong");
+  if (it.obsidian_note){
+    a.textContent = "Open “" + it.obsidian_note + "”";
+    a.href = obsOpen(it.obsidian_note);
+    a.dataset.mode = "open";
+  } else {
+    const n = longFormNote();
+    a.textContent = "Create long-form note";
+    a.href = obsNew(n.path, n.content);
+    a.dataset.mode = "new";
+  }
+}
+async function recordLongForm(){
+  const it = state.item;
+  if (!it || $("lnkLong").dataset.mode !== "new") return;
+  const n = longFormNote();
+  try {
+    await grist.docApi.applyUserActions([["UpdateRecord", "Items", it.id, {obsidian_note: n.path}]]);
+    log("Recorded long-form note on " + it.item_id + ": " + n.path);
+  } catch (e){
+    showError("The note was sent to Obsidian, but recording its title on the item failed: " + esc(e.message));
+  }
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+function wire(){
+  $("q").addEventListener("input", renderLinks);
+  ["fTitle", "fBody", "fPricing", "fCredit"].forEach(id => $(id).addEventListener("input", updateCapture));
+  $("btnPreview").addEventListener("click", () => { $("capPreview").hidden = !$("capPreview").hidden; updateCapture(); });
+  $("lnkCapture").addEventListener("click", e => {
+    if ($("lnkCapture").getAttribute("aria-disabled") === "true"){ e.preventDefault(); return; }
+    log("Sent finding to Obsidian inbox: " + $("fTitle").value);
+    setStatus("Sent to Obsidian", "ok");
+  });
+  $("pPublished").addEventListener("change", showWhen);
+  $("btnSavePD").addEventListener("click", savePD);
+  setLink("lnkPDNote", obsOpen(PD_NOTE), false);
+  $("lnkLong").addEventListener("click", () => { recordLongForm(); });
+  $("bigToggle").addEventListener("click", () => {
+    const on = document.body.classList.toggle("big-mode");
+    $("bigToggle").textContent = on ? "Normal view" : "Big view";
+    grist.widgetApi && grist.widgetApi.setOption && grist.widgetApi.setOption("big", on).catch(() => {});
+  });
+}
+
+async function boot(){
+  wire();
+  if (typeof grist === "undefined"){
+    showError("The Grist plugin API didn't load. Open this page as a custom widget inside Grist.");
+    setStatus("Not in Grist", "err");
+    return;
+  }
+  grist.ready({requiredAccess: "full", allowSelectBy: false});
+  grist.onOptions(opts => {
+    if (opts && opts.big && !document.body.classList.contains("big-mode")){
+      document.body.classList.add("big-mode"); $("bigToggle").textContent = "Normal view";
+    }
+  });
+  grist.onRecord(rec => { showItem(rec); setStatus("Ready", "ok"); });
+  setStatus("Ready", "ok");
+  log("Research console ready. Vault: " + VAULT);
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
