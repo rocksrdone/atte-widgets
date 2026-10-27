@@ -169,6 +169,15 @@ SPEC = [
     formula("avg_cost_basis", "Numeric", "round($cost_total_usd / $item_count, 2) if $item_count else 0", wo=MONEY),
     formula("profit_total_usd", "Numeric", SOURCE_ROLLUP + "round(sum(i.net_profit_usd or 0 for i in items), 2)", wo=MONEY),
   ]),
+  ("Categories", [
+    # One row per Items.category. field_guide is an Obsidian note TITLE (not a link),
+    # per the vault's Grist–Obsidian Boundary note, so it survives vault reorganisation.
+    text("category"),
+    choice("prefix", PREFIXES),
+    text("field_guide"),
+    text("notes"),
+    formula("item_count", "Int", "len(Items.lookupRecords(category=$category))"),
+  ]),
   ("Lots", [
     trigger("lot_id", "Text", seq_id("Lots", "lot_id", "LOT")),
     text("lot_name"),
@@ -200,8 +209,11 @@ SPEC = [
     text("location_notes"),
     choice("status", ITEM_STATUS),
     choice("will_be_scanned", YES_NO),
-    text("obsidian_note"),
+    text("obsidian_note"),                     # rare long-form note title (grist_ref in vault)
     text("notes"),
+    formula("field_guide", "Text",
+            "c = Categories.lookupOne(category=$category)\n"
+            "c.field_guide or 'Field Guide Index'"),
     # ── derived: sale side (Sales is the only place a sale is written) ──
     formula("sale", "Ref:Sales", latest("Sales", item_id="$id"), visible="sale_id"),
     formula("sold_date", "Date", "$sale.sale_date if $sale else None", wo=DATE),
@@ -373,6 +385,26 @@ SPEC = [
   ]),
 ]
 
+# Starting rows for Categories (edit freely in Grist afterwards)
+GUIDE_FOR = {
+    "Ephemera - Postcard": "Postcards - Field ID",
+    "Ephemera - Photo": "Photographs - Field ID",
+    "Ephemera - Book": "Books - Field ID",
+    "Ephemera - Cookbook": "Books - Field ID",
+    "Ephemera - Ad/Menu/Receipt": "Trade Cards and Victorian Scrap - Field ID",
+}
+PREFIX_FOR = {
+    "Retro Gaming": "GAME", "Music - Physical": "MUSIC", "DVD / VHS": "MEDIA",
+    "Vintage Toy": "TOY", "Office/Small Goods": "SMGDS", "Other": "SMGDS",
+}
+
+def seed_actions():
+    return [["BulkAddRecord", "Categories", [None] * len(CATEGORIES), {
+        "category": CATEGORIES,
+        "prefix": [PREFIX_FOR.get(c, "EPH") for c in CATEGORIES],
+        "field_guide": [GUIDE_FOR.get(c, "Field Guide Index") for c in CATEGORIES],
+    }]]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Action builders (shared with the offline test)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -522,6 +554,8 @@ def main():
             refs[(t, c["id"])] = c["fields"]["colRef"]
     print("Setting reference display columns and trigger dependencies…")
     g.apply(phase2_actions(lambda t, c: refs[(t, c)]))
+    g.apply(seed_actions())
+    print(f"Seeded Categories ({len(CATEGORIES)} rows).")
     if drop_table1:
         g.apply([["RemoveTable", "Table1"]])
         print("Removed the blank Table1.")
